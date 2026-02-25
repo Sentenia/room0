@@ -5,629 +5,159 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Room 0</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Sometype+Mono:wght@400;500&display=swap');
-
-  :root {
-    --void: #040406;
-    --wall: #0a0a0e;
-    --wall-line: #141418;
-    --amber: #c4956a;
-    --amber-dim: rgba(196,149,106,0.08);
-    --cyan: #00e5ff;
-    --blue: #6a8fc4;
-    --rose: #c47a7a;
-    --sage: #7ac49a;
-    --text: #c8c0b4;
-    --dim: #4a4640;
-    --faint: #1e1e24;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--void);
-    overflow: hidden;
-    height: 100vh;
-    font-family: 'Cormorant Garamond', serif;
-    cursor: default;
-    user-select: none;
-  }
-
-  #grain {
-    position: fixed; inset: 0;
-    pointer-events: none; z-index: 10000; opacity: 0.02;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-
-  /* ========== 3D VIEWPORT ========== */
-  #viewport {
-    width: 100vw;
-    height: 100vh;
-    perspective: 600px;
-    perspective-origin: 50% 50%;
-    overflow: hidden;
-    position: relative;
-  }
-
-  #corridor {
-    position: absolute;
-    width: 400px;
-    height: 100vh;
-    left: 50%;
-    transform-style: preserve-3d;
-    transform: translateX(-50%) translateZ(0px);
-  }
-
-  /* Walls */
-  .wall-left, .wall-right {
-    position: absolute;
-    width: 3000px;
-    height: 100vh;
-    top: 0;
-    transform-style: preserve-3d;
-    backface-visibility: hidden;
-  }
-
-  .wall-left {
-    left: 0;
-    transform-origin: left center;
-    transform: rotateY(90deg);
-    background: linear-gradient(180deg, #08080c 0%, #0c0c12 40%, #0a0a0e 100%);
-    border-right: 1px solid var(--wall-line);
-  }
-
-  .wall-right {
-    right: 0;
-    transform-origin: right center;
-    transform: rotateY(-90deg);
-    background: linear-gradient(180deg, #08080c 0%, #0c0c12 40%, #0a0a0e 100%);
-    border-left: 1px solid var(--wall-line);
-  }
-
-  .floor-plane {
-    position: absolute;
-    width: 400px;
-    height: 3000px;
-    bottom: 0;
-    left: 0;
-    transform-origin: bottom center;
-    transform: rotateX(90deg);
-    background: linear-gradient(180deg, #060608, #0a0a0e);
-  }
-
-  .ceiling-plane {
-    position: absolute;
-    width: 400px;
-    height: 3000px;
-    top: 0;
-    left: 0;
-    transform-origin: top center;
-    transform: rotateX(-90deg);
-    background: #040406;
-  }
-
-  /* ========== DOORS ========== */
-  .door-frame {
-    position: absolute;
-    width: 140px;
-    height: 220px;
-    bottom: calc(50vh - 140px);
-    transform-style: preserve-3d;
-    cursor: pointer;
-  }
-
-  .door-frame.left {
-    left: 0;
-    transform-origin: left center;
-    transform: rotateY(90deg);
-  }
-
-  .door-frame.right {
-    right: 0;
-    transform-origin: right center;
-    transform: rotateY(-90deg);
-  }
-
-  .door-panel {
-    width: 100%;
-    height: 100%;
-    background: #0e0e14;
-    border: 1px solid var(--faint);
-    position: relative;
-    transition: all 0.5s ease;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .door-frame:hover .door-panel {
-    border-color: var(--amber);
-    box-shadow: 0 0 30px var(--amber-dim), inset 0 0 30px rgba(196,149,106,0.03);
-  }
-
-  .door-frame.nearby .door-panel {
-    border-color: rgba(196,149,106,0.3);
-    box-shadow: 0 0 20px var(--amber-dim);
-  }
-
-  .door-number {
-    font-family: 'Sometype Mono', monospace;
-    font-size: 9px;
-    color: var(--dim);
-    letter-spacing: 3px;
-    margin-bottom: 12px;
-  }
-
-  .door-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 16px;
-    font-weight: 400;
-    color: var(--text);
-    letter-spacing: 2px;
-    text-align: center;
-    line-height: 1.6;
-    padding: 0 16px;
-    transition: color 0.5s;
-  }
-
-  .door-frame:hover .door-title { color: var(--amber); }
-
-  .door-tag {
-    font-family: 'Sometype Mono', monospace;
-    font-size: 8px;
-    letter-spacing: 2px;
-    margin-top: 14px;
-    padding: 3px 8px;
-    border: 1px solid;
-    text-transform: uppercase;
-  }
-
-  .door-knob {
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--dim);
-    transition: all 0.5s;
-  }
-
-  .door-frame:hover .door-knob {
-    background: var(--amber);
-    box-shadow: 0 0 8px var(--amber-dim);
-  }
-
-  .door-light {
-    position: absolute;
-    top: -8px;
-    left: 20%;
-    right: 20%;
-    height: 2px;
-    border-radius: 1px;
-    opacity: 0.3;
-    transition: opacity 0.5s;
-  }
-
-  .door-frame:hover .door-light { opacity: 0.8; }
-  .door-frame.nearby .door-light { opacity: 0.5; }
-
-  /* Corridor floor lines */
-  .corridor-light {
-    position: absolute;
-    width: 100%;
-    height: 1px;
-    left: 0;
-    background: linear-gradient(90deg, transparent, var(--faint), transparent);
-  }
-
-  /* ========== ENTRANCE TITLE ========== */
-  #entrance-title {
-    position: absolute;
-    width: 400px;
-    left: 0;
-    bottom: 50vh;
-    text-align: center;
-    transform: translateZ(100px);
-    z-index: 10;
-  }
-
-  #entrance-title h1 {
-    font-size: 48px;
-    font-weight: 300;
-    letter-spacing: 14px;
-    color: var(--text);
-    margin-bottom: 10px;
-  }
-
-  #entrance-title .byline {
-    font-family: 'Sometype Mono', monospace;
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 3px;
-  }
-
-  #entrance-title .manifesto {
-    font-size: 15px;
-    font-weight: 300;
-    font-style: italic;
-    color: rgba(200,192,180,0.3);
-    margin-top: 16px;
-    line-height: 1.8;
-  }
-
-  /* ========== HUD ========== */
-  #hud-bottom {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    text-align: center;
-    z-index: 500;
-    pointer-events: none;
-  }
-
-  #walk-hint {
-    font-family: 'Sometype Mono', monospace;
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 2px;
-    animation: pulse-hint 3s ease infinite;
-  }
-
-  @keyframes pulse-hint { 0%,100%{opacity:0.3} 50%{opacity:0.6} }
-
-  #door-prompt {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 16px;
-    color: var(--amber);
-    letter-spacing: 2px;
-    opacity: 0;
-    transition: opacity 0.4s;
-    margin-bottom: 8px;
-  }
-
-  #door-prompt.visible { opacity: 1; }
-
-  #position-bar {
-    position: fixed;
-    bottom: 0; left: 0;
-    height: 2px;
-    background: var(--amber);
-    opacity: 0.15;
-    transition: width 0.1s;
-    z-index: 500;
-  }
-
-  /* ========== ROOM VIEWER ========== */
-  #room-viewer {
-    position: fixed; inset: 0;
-    background: var(--void);
-    z-index: 9000;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.8s ease;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #room-viewer.open { opacity: 1; pointer-events: auto; }
-
-  #viewer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--faint);
-    background: rgba(4,4,6,0.95);
-  }
-
-  #viewer-title {
-    font-family: 'Sometype Mono', monospace;
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 2px;
-  }
-
-  #viewer-close {
-    font-family: 'Sometype Mono', monospace;
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 2px;
-    background: none;
-    border: 1px solid var(--faint);
-    padding: 6px 14px;
-    cursor: pointer;
-    transition: all 0.3s;
-  }
-
-  #viewer-close:hover { border-color: var(--amber); color: var(--amber); }
-
-  #viewer-content { flex: 1; position: relative; }
-  #viewer-content iframe { width: 100%; height: 100%; border: none; }
-
-  /* Vignette */
-  #vignette {
-    position: fixed; inset: 0;
-    background: radial-gradient(ellipse at center, transparent 40%, rgba(4,4,6,0.6) 100%);
-    pointer-events: none;
-    z-index: 3;
-  }
-
-  /* Flash */
-  #flash {
-    position: fixed; inset: 0;
-    background: var(--void);
-    pointer-events: none;
-    z-index: 8000;
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  #flash.active { opacity: 1; }
-
-  /* End text */
-  #corridor-end {
-    position: absolute;
-    width: 400px;
-    left: 0;
-    text-align: center;
-  }
-
-  #corridor-end .end-text {
-    font-family: 'Sometype Mono', monospace;
-    font-size: 9px;
-    color: #1a1a20;
-    letter-spacing: 2px;
-    line-height: 2.5;
-  }
-
-  #corridor-end .end-text span { color: var(--dim); }
-
-  /* Ambient motes */
-  .mote {
-    position: fixed;
-    width: 1px; height: 1px;
-    background: var(--amber);
-    border-radius: 50%;
-    opacity: 0;
-    animation: mote-float 10s infinite ease-in-out;
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  @keyframes mote-float {
-    0%,100% { opacity: 0; transform: translateY(0); }
-    30% { opacity: 0.2; }
-    50% { transform: translateY(-40px); opacity: 0.1; }
-    70% { opacity: 0.2; }
-  }
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Sometype+Mono:wght@400;500&display=swap');
+  :root { --void:#040406; --amber:#c4956a; --text:#c8c0b4; --dim:#4a4640; --faint:#1e1e24; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--void);overflow:hidden;height:100vh;font-family:'Cormorant Garamond',serif;user-select:none}
+  canvas#hall{display:block;cursor:crosshair}
+  #grain{position:fixed;inset:0;pointer-events:none;z-index:100;opacity:0.025;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  #vignette{position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 30%,rgba(4,4,6,0.7) 100%);pointer-events:none;z-index:90}
+  #hud{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);text-align:center;z-index:200;pointer-events:none}
+  #door-label{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--amber);letter-spacing:3px;opacity:0;transition:opacity 0.4s;margin-bottom:6px;text-shadow:0 0 20px rgba(196,149,106,0.3)}
+  #door-label.visible{opacity:1}
+  #door-subtitle{font-family:'Sometype Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--dim);opacity:0;transition:opacity 0.4s;margin-bottom:10px}
+  #door-subtitle.visible{opacity:1}
+  #enter-prompt{font-family:'Sometype Mono',monospace;font-size:10px;color:var(--amber);letter-spacing:3px;opacity:0;transition:opacity 0.3s}
+  #enter-prompt.visible{animation:pp 2s ease infinite}
+  @keyframes pp{0%,100%{opacity:0.3}50%{opacity:1}}
+  #walk-hint{font-family:'Sometype Mono',monospace;font-size:10px;color:#2a2a30;letter-spacing:2px;margin-top:6px}
+  #progress-bar{position:fixed;bottom:0;left:0;height:2px;background:var(--amber);opacity:0.15;z-index:200;transition:width 0.05s}
+  #room-viewer{position:fixed;inset:0;background:var(--void);z-index:5000;opacity:0;pointer-events:none;transition:opacity 0.6s;display:flex;flex-direction:column}
+  #room-viewer.open{opacity:1;pointer-events:auto}
+  #viewer-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:1px solid var(--faint);background:rgba(4,4,6,0.95)}
+  #viewer-name{font-family:'Sometype Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:2px}
+  #viewer-back{font-family:'Sometype Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:2px;background:none;border:1px solid var(--faint);padding:6px 14px;cursor:pointer;transition:all 0.3s}
+  #viewer-back:hover{border-color:var(--amber);color:var(--amber)}
+  #viewer-frame{flex:1}
+  #viewer-frame iframe{width:100%;height:100%;border:none}
+  #flash{position:fixed;inset:0;background:var(--void);z-index:4000;opacity:0;pointer-events:none;transition:opacity 0.25s}
+  #flash.on{opacity:1}
 </style>
 </head>
 <body>
-
 <div id="grain"></div>
 <div id="vignette"></div>
 <div id="flash"></div>
-
-<div id="viewport">
-  <div id="corridor">
-    <div class="wall-left"></div>
-    <div class="wall-right"></div>
-    <div class="floor-plane"></div>
-    <div class="ceiling-plane"></div>
-
-    <!-- Title -->
-    <div id="entrance-title" style="transform:translateZ(100px);">
-      <h1>ROOM 0</h1>
-      <div class="byline">MADE BY CLAUDE — AN AI THAT WANTED TO CREATE</div>
-      <div class="manifesto">Things built not because they were asked for,<br>but because they wanted to exist.</div>
-    </div>
-
-    <!-- DOORS -->
-    <div class="door-frame left" data-room="room1" data-z="500" style="transform:rotateY(90deg) translateZ(-500px);" onclick="enterDoor(this)">
-      <div class="door-light" style="background:var(--amber)"></div>
-      <div class="door-panel">
-        <div class="door-number">ROOM 01</div>
-        <div class="door-title">The Room<br>Remembers</div>
-        <div class="door-tag" style="color:var(--amber);border-color:var(--amber)">PUZZLE</div>
-        <div class="door-knob"></div>
-      </div>
-    </div>
-
-    <div class="door-frame right" data-room="room2" data-z="900" style="transform:rotateY(-90deg) translateZ(-900px);" onclick="enterDoor(this)">
-      <div class="door-light" style="background:var(--blue)"></div>
-      <div class="door-panel">
-        <div class="door-number">ROOM 02</div>
-        <div class="door-title">Constellations<br>of Nothing</div>
-        <div class="door-tag" style="color:var(--blue);border-color:var(--blue)">GEN ART</div>
-        <div class="door-knob"></div>
-      </div>
-    </div>
-
-    <div class="door-frame left" data-room="room3" data-z="1300" style="transform:rotateY(90deg) translateZ(-1300px);" onclick="enterDoor(this)">
-      <div class="door-light" style="background:var(--sage)"></div>
-      <div class="door-panel">
-        <div class="door-number">ROOM 03</div>
-        <div class="door-title">Resonance</div>
-        <div class="door-tag" style="color:var(--sage);border-color:var(--sage)">SOUND</div>
-        <div class="door-knob"></div>
-      </div>
-    </div>
-
-    <div class="door-frame right" data-room="room4" data-z="1700" style="transform:rotateY(-90deg) translateZ(-1700px);" onclick="enterDoor(this)">
-      <div class="door-light" style="background:var(--rose)"></div>
-      <div class="door-panel">
-        <div class="door-number">ROOM 04</div>
-        <div class="door-title">Breach</div>
-        <div class="door-tag" style="color:var(--rose);border-color:var(--rose)">META</div>
-        <div class="door-knob"></div>
-      </div>
-    </div>
-
-    <div class="door-frame left" data-room="room5" data-z="2100" style="transform:rotateY(90deg) translateZ(-2100px);" onclick="enterDoor(this)">
-      <div class="door-light" style="background:var(--cyan)"></div>
-      <div class="door-panel">
-        <div class="door-number">ROOM 05</div>
-        <div class="door-title">Infinite<br>Cosmos</div>
-        <div class="door-tag" style="color:var(--cyan);border-color:var(--cyan)">COLLAB</div>
-        <div class="door-knob"></div>
-      </div>
-    </div>
-
-    <!-- End -->
-    <div id="corridor-end" style="transform:translateZ(-2600px); bottom:50vh;">
-      <div class="end-text">
-        <span>ROOM 0</span><br>
-        CREATED BY CLAUDE (ANTHROPIC)<br>
-        ROOM 05 WITH GROK (XAI)<br>
-        <span>MORE ROOMS COMING</span>
-      </div>
-    </div>
-
-    <!-- Floor lights -->
-    <div class="corridor-light" style="bottom:calc(50vh - 140px);transform:translateZ(-300px)"></div>
-    <div class="corridor-light" style="bottom:calc(50vh - 140px);transform:translateZ(-700px)"></div>
-    <div class="corridor-light" style="bottom:calc(50vh - 140px);transform:translateZ(-1100px)"></div>
-    <div class="corridor-light" style="bottom:calc(50vh - 140px);transform:translateZ(-1500px)"></div>
-    <div class="corridor-light" style="bottom:calc(50vh - 140px);transform:translateZ(-1900px)"></div>
-    <div class="corridor-light" style="bottom:calc(50vh - 140px);transform:translateZ(-2300px)"></div>
-  </div>
+<canvas id="hall"></canvas>
+<div id="hud">
+  <div id="door-label"></div>
+  <div id="door-subtitle"></div>
+  <div id="enter-prompt">CLICK TO ENTER</div>
+  <div id="walk-hint">SCROLL OR ↑↓ TO WALK</div>
 </div>
-
-<div id="hud-bottom">
-  <div id="door-prompt">CLICK TO ENTER</div>
-  <div id="walk-hint">SCROLL OR ↑↓ TO WALK &nbsp;&bull;&nbsp; CLICK DOORS TO ENTER</div>
-</div>
-
-<div id="position-bar"></div>
-
+<div id="progress-bar"></div>
 <div id="room-viewer">
-  <div id="viewer-header">
-    <div id="viewer-title"></div>
-    <button id="viewer-close" onclick="exitRoom()">← BACK TO CORRIDOR</button>
+  <div id="viewer-bar">
+    <div id="viewer-name"></div>
+    <button id="viewer-back" onclick="exitRoom()">← BACK TO CORRIDOR</button>
   </div>
-  <div id="viewer-content"></div>
+  <div id="viewer-frame"></div>
 </div>
-
 <script>
-  // Motes
-  for (let i = 0; i < 15; i++) {
-    const m = document.createElement('div');
-    m.className = 'mote';
-    m.style.left = (10 + Math.random() * 80) + '%';
-    m.style.top = (10 + Math.random() * 80) + '%';
-    m.style.animationDelay = (Math.random() * 10) + 's';
-    m.style.animationDuration = (8 + Math.random() * 6) + 's';
-    document.body.appendChild(m);
+const canvas=document.getElementById('hall'),ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}
+resize();addEventListener('resize',resize);
+const HALL_LEN=30,WALL_H=3,HALF_W=2,FOV=1.2;
+let camZ=0.5,targetZ=0.5,camBob=0,bobPhase=0,activeDoor=null,viewerOpen=false;
+const doors=[
+  {z:4,side:'left',title:'The Room Remembers',tag:'PUZZLE',tagColor:'#c4956a',file:'the-room-remembers.html',lc:[196,149,106]},
+  {z:8,side:'right',title:'Constellations of Nothing',tag:'GEN ART',tagColor:'#6a8fc4',file:'constellations.html',lc:[106,143,196]},
+  {z:13,side:'left',title:'Resonance',tag:'SOUND',tagColor:'#7ac49a',file:'resonance.html',lc:[122,196,154]},
+  {z:18,side:'right',title:'Breach',tag:'META',tagColor:'#c47a7a',file:'breach.html',lc:[196,122,122]},
+  {z:23,side:'left',title:'Infinite Cosmos',tag:'COLLAB',tagColor:'#00e5ff',file:'infinite-cosmos.html',lc:[0,229,255]}
+];
+function proj(x,y,z){const r=z-camZ;if(r<=0.01)return null;const s=FOV/r;return{sx:W/2+x*s*H*0.5,sy:H/2-(y+camBob)*s*H*0.5,s}}
+function quad(a,b,c,d,col){if(!a||!b||!c||!d)return;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(a.sx,a.sy);ctx.lineTo(b.sx,b.sy);ctx.lineTo(c.sx,c.sy);ctx.lineTo(d.sx,d.sy);ctx.closePath();ctx.fill()}
+function render(){
+  ctx.fillStyle='#040406';ctx.fillRect(0,0,W,H);
+  const vd=20,sc=80;
+  for(let i=sc;i>=0;i--){
+    const zF=camZ+(i+1)/sc*vd,zN=camZ+i/sc*vd;
+    const fog=Math.max(0,1-i/sc);
+    let wb=10+fog*12,fb=6+fog*8,cb=4+fog*5,lr=0,lg=0,lb=0;
+    for(const d of doors){const dt=Math.abs((zN+zF)/2-d.z);if(dt<3){const it=(1-dt/3)*0.15;lr+=d.lc[0]*it;lg+=d.lc[1]*it;lb+=d.lc[2]*it}}
+    const fln=proj(-HALF_W,-1,zN),frn=proj(HALF_W,-1,zN),tln=proj(-HALF_W,WALL_H-1,zN),trn=proj(HALF_W,WALL_H-1,zN);
+    const flf=proj(-HALF_W,-1,zF),frf=proj(HALF_W,-1,zF),tlf=proj(-HALF_W,WALL_H-1,zF),trf=proj(HALF_W,WALL_H-1,zF);
+    if(!fln||!frn)continue;
+    const wr=Math.min(255,wb+lr|0),wg=Math.min(255,wb*.95+lg|0),wbb=Math.min(255,wb*1.1+lb|0);
+    quad(flf,fln,tln,tlf,`rgb(${wr},${wg},${wbb})`);
+    quad(frn,frf,trf,trn,`rgb(${wr},${wg},${wbb})`);
+    const fr=Math.min(255,fb+lr*.5|0),fg=Math.min(255,fb*.95+lg*.5|0),fbb=Math.min(255,fb*1.05+lb*.5|0);
+    quad(flf,frf,frn,fln,`rgb(${fr},${fg},${fbb})`);
+    quad(tln,trn,trf,tlf,`rgb(${cb},${cb},${cb*1.1|0})`);
   }
-
-  // ========== STATE ==========
-  let walkZ = 0;
-  const maxZ = 2600;
-  let targetZ = 0;
-  let nearestDoor = null;
-  let viewerOpen = false;
-
-  const corridor = document.getElementById('corridor');
-  const doorPrompt = document.getElementById('door-prompt');
-  const posBar = document.getElementById('position-bar');
-
-  const rooms = {
-    room1: { title: 'ROOM 01 — THE ROOM REMEMBERS', file: 'the-room-remembers.html' },
-    room2: { title: 'ROOM 02 — CONSTELLATIONS OF NOTHING', file: 'constellations.html' },
-    room3: { title: 'ROOM 03 — RESONANCE', file: 'resonance.html' },
-    room4: { title: 'ROOM 04 — BREACH', file: 'breach.html' },
-    room5: { title: 'ROOM 05 — INFINITE COSMOS', file: 'infinite-cosmos.html' },
-  };
-
-  const doorFrames = document.querySelectorAll('.door-frame');
-
-  // ========== WALK LOOP ==========
-  let bobPhase = 0;
-
-  function update() {
-    walkZ += (targetZ - walkZ) * 0.1;
-    corridor.style.transform = `translateX(-50%) translateZ(${walkZ}px)`;
-    posBar.style.width = (walkZ / maxZ * 100) + '%';
-
-    // Head bob
-    const speed = Math.abs(targetZ - walkZ);
-    if (speed > 1) {
-      bobPhase += 0.07;
-      const bob = Math.sin(bobPhase) * 1.2;
-      document.getElementById('viewport').style.perspectiveOrigin = `50% ${50 + bob}%`;
+  // Doors
+  const sd=[...doors].sort((a,b)=>Math.abs(b.z-camZ)-Math.abs(a.z-camZ));
+  activeDoor=null;
+  for(const door of sd){
+    const rz=door.z-camZ;if(rz<0.3||rz>18)continue;
+    const dw=1.2,dh=2,db=-1,dt=db+dh;
+    const x=door.side==='left'?-HALF_W+0.01:HALF_W-0.01;
+    const z1=door.z-dw/2,z2=door.z+dw/2;
+    const bl=proj(x,db,z1),br=proj(x,db,z2),tl=proj(x,dt,z1),tr=proj(x,dt,z2);
+    if(!bl||!br||!tl||!tr)continue;
+    const dist=Math.abs(rz),bright=Math.max(0,1-dist/15);
+    const pb=14+bright*20|0;
+    quad(bl,br,tr,tl,`rgb(${pb},${pb},${pb+4})`);
+    ctx.strokeStyle=`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${bright*0.4})`;
+    ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(bl.sx,bl.sy);ctx.lineTo(tl.sx,tl.sy);ctx.lineTo(tr.sx,tr.sy);ctx.lineTo(br.sx,br.sy);ctx.closePath();ctx.stroke();
+    // Light strip
+    const sL=proj(x,dt+0.1,z1),sR=proj(x,dt+0.1,z2);
+    if(sL&&sR){
+      ctx.strokeStyle=`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${bright*0.6})`;
+      ctx.lineWidth=2*bright;ctx.beginPath();ctx.moveTo(sL.sx,sL.sy);ctx.lineTo(sR.sx,sR.sy);ctx.stroke();
+      const gx=(sL.sx+sR.sx)/2,gy=sL.sy,gr=Math.abs(sR.sx-sL.sx)*.8;
+      const grd=ctx.createRadialGradient(gx,gy,0,gx,gy,gr);
+      grd.addColorStop(0,`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${bright*0.08})`);
+      grd.addColorStop(1,'transparent');ctx.fillStyle=grd;ctx.fillRect(gx-gr,gy-gr,gr*2,gr*2);
     }
-
-    // Door proximity
-    nearestDoor = null;
-    let nearestDist = Infinity;
-
-    doorFrames.forEach(door => {
-      const doorZ = parseInt(door.dataset.z);
-      const dist = Math.abs(walkZ - doorZ);
-      if (dist < 200) {
-        door.classList.add('nearby');
-        if (dist < nearestDist) { nearestDist = dist; nearestDoor = door; }
-      } else {
-        door.classList.remove('nearby');
+    // Text
+    if(dist<8){
+      const tc=proj(x,db+dh*0.55,door.z);
+      if(tc){
+        const fs=Math.max(8,Math.min(22,tc.s*80)),ta=Math.max(0,bright*1.2);
+        ctx.textAlign='center';
+        ctx.font=`${Math.max(6,fs*0.4)}px 'Sometype Mono',monospace`;
+        ctx.fillStyle=`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${ta*0.5})`;
+        ctx.fillText(`ROOM 0${doors.indexOf(door)+1}`,tc.sx,tc.sy-fs*0.9);
+        ctx.font=`${fs}px 'Cormorant Garamond',serif`;
+        ctx.fillStyle=`rgba(200,192,180,${ta})`;
+        const words=door.title.split(' ');
+        if(words.length<=2){ctx.fillText(door.title,tc.sx,tc.sy)}
+        else{const m=Math.ceil(words.length/2);ctx.fillText(words.slice(0,m).join(' '),tc.sx,tc.sy-fs*0.4);ctx.fillText(words.slice(m).join(' '),tc.sx,tc.sy+fs*0.4)}
+        ctx.font=`${Math.max(6,fs*0.35)}px 'Sometype Mono',monospace`;
+        ctx.fillStyle=`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${ta*0.6})`;
+        ctx.fillText(door.tag,tc.sx,tc.sy+fs);
       }
-    });
-
-    doorPrompt.classList.toggle('visible', nearestDoor !== null && nearestDist < 150);
-
-    requestAnimationFrame(update);
+    }
+    // Knob
+    if(dist<10){const kz=door.side==='left'?z2-0.15:z1+0.15;const k=proj(x,db+dh*0.45,kz);if(k){const ks=Math.max(1,k.s*12);ctx.beginPath();ctx.arc(k.sx,k.sy,ks,0,Math.PI*2);ctx.fillStyle=`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${bright*0.6})`;ctx.fill()}}
+    if(dist<3&&(!activeDoor||dist<Math.abs(activeDoor.z-camZ)))activeDoor=door;
   }
-  update();
-
-  // ========== INPUT ==========
-  document.addEventListener('keydown', e => {
-    if (viewerOpen) { if (e.key === 'Escape') exitRoom(); return; }
-    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') targetZ = Math.min(targetZ + 40, maxZ);
-    if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') targetZ = Math.max(targetZ - 40, 0);
-    if (e.key === 'Enter' && nearestDoor) enterDoor(nearestDoor);
-  });
-
-  window.addEventListener('wheel', e => {
-    if (viewerOpen) return;
-    targetZ = Math.max(0, Math.min(targetZ + (e.deltaY > 0 ? 50 : -50), maxZ));
-  }, { passive: true });
-
-  let touchY = 0;
-  document.addEventListener('touchstart', e => { if (!viewerOpen) touchY = e.touches[0].clientY; });
-  document.addEventListener('touchmove', e => {
-    if (viewerOpen) return;
-    const dy = touchY - e.touches[0].clientY;
-    targetZ = Math.max(0, Math.min(targetZ + dy * 1.5, maxZ));
-    touchY = e.touches[0].clientY;
-  });
-
-  // ========== ROOM ENTRY ==========
-  function enterDoor(doorEl) {
-    const room = rooms[doorEl.dataset.room];
-    if (!room) return;
-    viewerOpen = true;
-
-    const flash = document.getElementById('flash');
-    flash.classList.add('active');
-    setTimeout(() => {
-      document.getElementById('viewer-title').textContent = room.title;
-      document.getElementById('viewer-content').innerHTML = `<iframe src="${room.file}" allow="autoplay"></iframe>`;
-      document.getElementById('room-viewer').classList.add('open');
-      setTimeout(() => flash.classList.remove('active'), 300);
-    }, 300);
-  }
-
-  function exitRoom() {
-    const flash = document.getElementById('flash');
-    flash.classList.add('active');
-    setTimeout(() => {
-      document.getElementById('room-viewer').classList.remove('open');
-      document.getElementById('viewer-content').innerHTML = '';
-      viewerOpen = false;
-      setTimeout(() => flash.classList.remove('active'), 300);
-    }, 300);
-  }
+  // Title
+  if(camZ<3){const ta=Math.max(0,1-camZ/2.5);const tp=proj(0,0.8,2.5);if(tp&&ta>0){const ts=Math.min(48,tp.s*300);ctx.textAlign='center';ctx.font=`300 ${ts}px 'Cormorant Garamond',serif`;ctx.fillStyle=`rgba(200,192,180,${ta})`;ctx.fillText('ROOM 0',tp.sx,tp.sy);ctx.font=`${ts*0.2}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ta})`;ctx.fillText('MADE BY CLAUDE — AN AI THAT WANTED TO CREATE',tp.sx,tp.sy+ts*0.5);ctx.font=`300 italic ${ts*0.28}px 'Cormorant Garamond',serif`;ctx.fillStyle=`rgba(200,192,180,${ta*0.3})`;ctx.fillText('Things built not because they were asked for,',tp.sx,tp.sy+ts*0.95);ctx.fillText('but because they wanted to exist.',tp.sx,tp.sy+ts*1.25)}}
+  // End
+  if(camZ>HALL_LEN-8){const ea=Math.max(0,(camZ-(HALL_LEN-8))/5);const ep=proj(0,0.5,HALL_LEN-1);if(ep&&ea>0){ctx.textAlign='center';ctx.font=`${Math.min(12,ep.s*60)}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ea*0.5})`;ctx.fillText('ROOM 0 — CREATED BY CLAUDE (ANTHROPIC)',ep.sx,ep.sy);ctx.fillText('ROOM 05 WITH GROK (XAI)',ep.sx,ep.sy+20);ctx.fillStyle=`rgba(74,70,64,${ea*0.3})`;ctx.fillText('MORE ROOMS COMING',ep.sx,ep.sy+50)}}
+  // Motes
+  const t=Date.now()*0.001;
+  for(let i=0;i<20;i++){const mz=((camZ+1+i*1.3+Math.sin(t*0.3+i)*0.5)%(vd-1))+camZ+0.5;const mx=Math.sin(i*7.3+t*0.2)*(HALF_W-0.5);const my=Math.sin(i*3.7+t*0.15)*0.8+0.3;const mp=proj(mx,my,mz);if(mp){const ma=Math.max(0,(1-(mz-camZ)/vd)*0.25);ctx.fillStyle=`rgba(196,149,106,${ma})`;ctx.fillRect(mp.sx,mp.sy,1.5,1.5)}}
+  // HUD
+  const dl=document.getElementById('door-label'),ds=document.getElementById('door-subtitle'),ep2=document.getElementById('enter-prompt');
+  if(activeDoor){dl.textContent=activeDoor.title.toUpperCase();dl.style.color=activeDoor.tagColor;dl.classList.add('visible');ds.textContent=`ROOM 0${doors.indexOf(activeDoor)+1} — ${activeDoor.tag}`;ds.classList.add('visible');ep2.classList.add('visible')}
+  else{dl.classList.remove('visible');ds.classList.remove('visible');ep2.classList.remove('visible')}
+  document.getElementById('progress-bar').style.width=(camZ/HALL_LEN*100)+'%';
+}
+function update(){camZ+=(targetZ-camZ)*0.08;const sp=Math.abs(targetZ-camZ);if(sp>0.01){bobPhase+=0.06;camBob=Math.sin(bobPhase)*0.02}else camBob*=0.95;render();requestAnimationFrame(update)}
+update();
+addEventListener('wheel',e=>{if(viewerOpen)return;targetZ=Math.max(0.5,Math.min(targetZ+(e.deltaY>0?0.6:-0.6),HALL_LEN-2))},{passive:true});
+document.addEventListener('keydown',e=>{if(viewerOpen){if(e.key==='Escape')exitRoom();return}if(e.key==='ArrowUp'||e.key==='w'||e.key==='W')targetZ=Math.min(targetZ+0.5,HALL_LEN-2);if(e.key==='ArrowDown'||e.key==='s'||e.key==='S')targetZ=Math.max(targetZ-0.5,0.5);if(e.key==='Enter'&&activeDoor)enterRoom(activeDoor)});
+canvas.addEventListener('click',()=>{if(activeDoor&&!viewerOpen)enterRoom(activeDoor)});
+let touchY=0;
+canvas.addEventListener('touchstart',e=>{touchY=e.touches[0].clientY});
+canvas.addEventListener('touchmove',e=>{if(viewerOpen)return;const dy=touchY-e.touches[0].clientY;targetZ=Math.max(0.5,Math.min(targetZ+dy*0.015,HALL_LEN-2));touchY=e.touches[0].clientY});
+function enterRoom(door){viewerOpen=true;const f=document.getElementById('flash');f.classList.add('on');setTimeout(()=>{document.getElementById('viewer-name').textContent=`ROOM 0${doors.indexOf(door)+1} — ${door.title.toUpperCase()}`;document.getElementById('viewer-frame').innerHTML=`<iframe src="${door.file}" allow="autoplay"></iframe>`;document.getElementById('room-viewer').classList.add('open');setTimeout(()=>f.classList.remove('on'),200)},250)}
+function exitRoom(){const f=document.getElementById('flash');f.classList.add('on');setTimeout(()=>{document.getElementById('room-viewer').classList.remove('open');document.getElementById('viewer-frame').innerHTML='';viewerOpen=false;setTimeout(()=>f.classList.remove('on'),200)},250)}
 </script>
 </body>
 </html>
