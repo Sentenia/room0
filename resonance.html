@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resonance</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Sometype+Mono:wght@400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #040408;
+    overflow: hidden;
+    cursor: crosshair;
+    user-select: none;
+  }
+
+  canvas { display: block; }
+
+  #title-overlay {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 20;
+    pointer-events: none;
+    animation: title-life 7s ease forwards;
+  }
+
+  #title-overlay h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px;
+    font-weight: 300;
+    letter-spacing: 8px;
+    color: rgba(122, 196, 154, 0.5);
+    margin-bottom: 12px;
+  }
+
+  #title-overlay p {
+    font-family: 'Sometype Mono', monospace;
+    font-size: 10px;
+    color: rgba(122, 196, 154, 0.2);
+    letter-spacing: 3px;
+  }
+
+  @keyframes title-life {
+    0% { opacity: 0; }
+    15% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  #note-hint {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Sometype Mono', monospace;
+    font-size: 10px;
+    color: rgba(122, 196, 154, 0.15);
+    letter-spacing: 3px;
+    z-index: 10;
+    pointer-events: none;
+    transition: opacity 2s;
+  }
+
+  #key-display {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Sometype Mono', monospace;
+    font-size: 9px;
+    color: rgba(122, 196, 154, 0.2);
+    letter-spacing: 3px;
+    z-index: 10;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="title-overlay">
+  <h1>RESONANCE</h1>
+  <p>CLICK TO DROP NOTES &mdash; HOVER TO BEND</p>
+</div>
+
+<div id="key-display">KEY OF D MINOR</div>
+<div id="note-hint">CLICK ANYWHERE</div>
+
+<canvas id="field"></canvas>
+
+<script>
+  const canvas = document.getElementById('field');
+  const ctx = canvas.getContext('2d');
+
+  let W, H;
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ========== AUDIO ==========
+  let audioCtx;
+  let masterGain;
+  let reverbNode;
+  let initialized = false;
+
+  // D minor pentatonic scale frequencies across octaves
+  const scale = [
+    146.83, 174.61, 196.00, 220.00, 261.63,  // D3-C4
+    293.66, 349.23, 392.00, 440.00, 523.25,  // D4-C5
+    587.33, 698.46, 783.99, 880.00, 1046.50, // D5-C6
+  ];
+
+  function initAudio() {
+    if (initialized) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.3;
+
+    // Create reverb using convolver with generated impulse
+    reverbNode = audioCtx.createConvolver();
+    const sampleRate = audioCtx.sampleRate;
+    const length = sampleRate * 3;
+    const impulse = audioCtx.createBuffer(2, length, sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
+      }
+    }
+    reverbNode.buffer = impulse;
+
+    const dryGain = audioCtx.createGain();
+    dryGain.gain.value = 0.4;
+    const wetGain = audioCtx.createGain();
+    wetGain.gain.value = 0.6;
+
+    masterGain.connect(dryGain);
+    masterGain.connect(reverbNode);
+    reverbNode.connect(wetGain);
+    dryGain.connect(audioCtx.destination);
+    wetGain.connect(audioCtx.destination);
+
+    initialized = true;
+
+    // Start ambient drone
+    startDrone();
+  }
+
+  function startDrone() {
+    // Low D drone
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 73.42; // D2
+
+    const droneGain = audioCtx.createGain();
+    droneGain.gain.value = 0;
+    droneGain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 4);
+
+    // Slow LFO on drone
+    const lfo = audioCtx.createOscillator();
+    lfo.frequency.value = 0.1;
+    const lfoGain = audioCtx.createGain();
+    lfoGain.gain.value = 2;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    lfo.start();
+
+    osc.connect(droneGain);
+    droneGain.connect(masterGain);
+    osc.start();
+  }
+
+  function playNote(freq, x, y) {
+    if (!initialized) return;
+    const now = audioCtx.currentTime;
+
+    // Main tone
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+
+    // Slight detune based on y position
+    const detune = (y / H - 0.5) * 10;
+    osc.detune.value = detune;
+
+    // Envelope
+    const env = audioCtx.createGain();
+    env.gain.value = 0;
+    env.gain.linearRampToValueAtTime(0.15, now + 0.05);
+    env.gain.exponentialRampToValueAtTime(0.001, now + 3);
+
+    // Harmonic
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'triangle';
+    osc2.frequency.value = freq * 2;
+    const env2 = audioCtx.createGain();
+    env2.gain.value = 0;
+    env2.gain.linearRampToValueAtTime(0.04, now + 0.08);
+    env2.gain.exponentialRampToValueAtTime(0.001, now + 2);
+
+    osc.connect(env);
+    osc2.connect(env2);
+    env.connect(masterGain);
+    env2.connect(masterGain);
+
+    osc.start(now);
+    osc2.start(now);
+    osc.stop(now + 3.5);
+    osc2.stop(now + 2.5);
+  }
+
+  function getFreqForPosition(x, y) {
+    // X maps to note in scale, Y maps to octave range
+    const idx = Math.floor((x / W) * scale.length);
+    return scale[Math.max(0, Math.min(scale.length - 1, idx))];
+  }
+
+  // ========== VISUALS ==========
+  const ripples = [];
+  const nodes = [];
+  const connections = [];
+  let mouseX = W / 2, mouseY = H / 2;
+  let hoverFreq = 0;
+  let frameCount = 0;
+
+  class Ripple {
+    constructor(x, y, color) {
+      this.x = x;
+      this.y = y;
+      this.radius = 0;
+      this.maxRadius = 150 + Math.random() * 100;
+      this.alpha = 0.5;
+      this.color = color;
+      this.speed = 1.2 + Math.random() * 0.8;
+    }
+
+    update() {
+      this.radius += this.speed;
+      this.alpha = 0.5 * (1 - this.radius / this.maxRadius);
+      return this.radius < this.maxRadius;
+    }
+
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.strokeStyle = this.color;
+      ctx.globalAlpha = this.alpha;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Inner ring
+      if (this.radius > 10) {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
+        ctx.globalAlpha = this.alpha * 0.3;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  class Node {
+    constructor(x, y, freq, color) {
+      this.x = x;
+      this.y = y;
+      this.freq = freq;
+      this.color = color;
+      this.radius = 3;
+      this.alpha = 0;
+      this.targetAlpha = 0.7;
+      this.life = 1;
+      this.decay = 0.002;
+      this.pulsePhase = Math.random() * Math.PI * 2;
+    }
+
+    update() {
+      if (this.alpha < this.targetAlpha) this.alpha += 0.015;
+      this.life -= this.decay;
+      this.pulsePhase += 0.04;
+      return this.life > 0;
+    }
+
+    draw() {
+      const pulse = 0.8 + 0.2 * Math.sin(this.pulsePhase);
+      const a = this.alpha * this.life * pulse;
+      const r = this.radius * (1 + 0.2 * Math.sin(this.pulsePhase * 0.5));
+
+      // Glow
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, r * 6, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.globalAlpha = a * 0.06;
+      ctx.fill();
+
+      // Core
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.globalAlpha = a;
+      ctx.fill();
+
+      // Hot center
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, r * 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.globalAlpha = a * 0.6;
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function dropNote(x, y) {
+    initAudio();
+    const freq = getFreqForPosition(x, y);
+    playNote(freq, x, y);
+
+    // Color based on frequency
+    const hue = ((freq - 146) / (1046 - 146));
+    const colors = ['#7ac49a', '#6ab4c4', '#6a8fc4', '#8a7ac4', '#c47aa4'];
+    const color = colors[Math.floor(hue * colors.length)] || colors[0];
+
+    ripples.push(new Ripple(x, y, color));
+    ripples.push(new Ripple(x, y, color)); // Double ripple
+    nodes.push(new Node(x, y, freq, color));
+
+    // Connect to nearby nodes
+    nodes.forEach(n => {
+      if (n.x === x && n.y === y) return;
+      const dx = n.x - x;
+      const dy = n.y - y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < 200) {
+        connections.push({
+          x1: x, y1: y, x2: n.x, y2: n.y,
+          alpha: 0.2 * (1 - d / 200),
+          color: color,
+          life: 1,
+        });
+      }
+    });
+
+    document.getElementById('note-hint').style.opacity = '0';
+  }
+
+  // ========== WAVE FIELD (background) ==========
+  function drawWaveField() {
+    const t = frameCount * 0.008;
+    ctx.lineWidth = 0.5;
+
+    for (let y = 0; y < H; y += 40) {
+      ctx.beginPath();
+      for (let x = 0; x < W; x += 4) {
+        const mouseDistX = (x - mouseX) / W;
+        const mouseDistY = (y - mouseY) / H;
+        const mouseDist = Math.sqrt(mouseDistX * mouseDistX + mouseDistY * mouseDistY);
+        const mouseInfluence = Math.max(0, 1 - mouseDist * 3) * 8;
+
+        const wave = Math.sin(x * 0.008 + t) * 3
+          + Math.sin(x * 0.003 + t * 0.7) * 5
+          + Math.sin(y * 0.005 + t * 0.5) * 2
+          + mouseInfluence * Math.sin(x * 0.02 + t * 2);
+
+        if (x === 0) ctx.moveTo(x, y + wave);
+        else ctx.lineTo(x, y + wave);
+      }
+      ctx.strokeStyle = 'rgba(122, 196, 154, 0.03)';
+      ctx.stroke();
+    }
+  }
+
+  // ========== MAIN LOOP ==========
+  function loop() {
+    frameCount++;
+
+    // Clear
+    ctx.fillStyle = 'rgba(4, 4, 8, 0.12)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Background wave field
+    if (frameCount % 2 === 0) drawWaveField();
+
+    // Connections
+    for (let i = connections.length - 1; i >= 0; i--) {
+      const c = connections[i];
+      c.life -= 0.003;
+      if (c.life <= 0) { connections.splice(i, 1); continue; }
+      ctx.beginPath();
+      ctx.moveTo(c.x1, c.y1);
+      ctx.lineTo(c.x2, c.y2);
+      ctx.strokeStyle = c.color;
+      ctx.globalAlpha = c.alpha * c.life;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Ripples
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      if (!ripples[i].update()) { ripples.splice(i, 1); continue; }
+      ripples[i].draw();
+    }
+
+    // Nodes
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      if (!nodes[i].update()) { nodes.splice(i, 1); continue; }
+      nodes[i].draw();
+    }
+
+    // Cursor glow
+    ctx.beginPath();
+    ctx.arc(mouseX, mouseY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(122, 196, 154, 0.15)';
+    ctx.fill();
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // ========== INPUT ==========
+  canvas.addEventListener('click', e => {
+    dropNote(e.clientX, e.clientY);
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+
+  // Touch
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    dropNote(t.clientX, t.clientY);
+    mouseX = t.clientX;
+    mouseY = t.clientY;
+  });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    mouseX = e.touches[0].clientX;
+    mouseY = e.touches[0].clientY;
+  });
+
+  // Keyboard — play notes with keys
+  const keyMap = { a: 0, s: 1, d: 2, f: 3, g: 4, h: 5, j: 6, k: 7, l: 8 };
+  document.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    if (k in keyMap) {
+      initAudio();
+      const freq = scale[keyMap[k] + 3]; // Middle range
+      const x = (keyMap[k] / 9) * W;
+      const y = H * 0.5 + (Math.random() - 0.5) * 100;
+      playNote(freq, x, y);
+
+      const colors = ['#7ac49a', '#6ab4c4', '#6a8fc4', '#8a7ac4', '#c47aa4'];
+      const color = colors[keyMap[k] % colors.length];
+      ripples.push(new Ripple(x, y, color));
+      nodes.push(new Node(x, y, freq, color));
+    }
+  });
+
+  // Auto-play ambient notes occasionally
+  setInterval(() => {
+    if (!initialized || nodes.length > 30) return;
+    if (Math.random() < 0.3) {
+      const x = Math.random() * W;
+      const y = Math.random() * H;
+      const freq = scale[Math.floor(Math.random() * 5) + 5]; // Higher register
+      playNote(freq, x, y);
+
+      const color = 'rgba(122, 196, 154, 0.4)';
+      ripples.push(new Ripple(x, y, '#7ac49a'));
+      nodes.push(new Node(x, y, freq, '#7ac49a'));
+    }
+  }, 4000);
+</script>
+</body>
+</html>

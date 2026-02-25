@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Room Remembers</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Sometype+Mono:wght@300;400&display=swap');
+
+  :root {
+    --bg: #060608;
+    --wall: #0e0e12;
+    --accent: #c4956a;
+    --accent2: #6a8fc4;
+    --text: #c8c0b4;
+    --dim: #5a564f;
+    --danger: #c47a7a;
+    --glow: rgba(196, 149, 106, 0.2);
+    --sage: #7ac49a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Cormorant Garamond', serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    cursor: crosshair;
+    user-select: none;
+  }
+
+  /* Grain */
+  #grain {
+    position: fixed; top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    pointer-events: none; z-index: 9999; opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ========== ROOM ========== */
+  #room {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 740px; height: 480px;
+    background: var(--wall);
+    border: 1px solid #1e1e24;
+    transition: all 1.5s cubic-bezier(0.23, 1, 0.32, 1);
+    overflow: hidden;
+  }
+
+  #room.inverted { background: #e8e0d4; border-color: #b8b0a4; }
+  #room.shake { animation: shake 0.3s ease; }
+  #room.expanded { width: 100vw; height: 100vh; border: none; }
+
+  @keyframes shake {
+    0%, 100% { transform: translate(-50%, -50%); }
+    25% { transform: translate(calc(-50% + 3px), calc(-50% - 2px)); }
+    75% { transform: translate(calc(-50% - 3px), calc(-50% + 2px)); }
+  }
+
+  /* Floor */
+  #room::after {
+    content: '';
+    position: absolute;
+    bottom: 90px; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #1e1e24 15%, #1e1e24 85%, transparent);
+    transition: all 1s;
+  }
+
+  #room.inverted::after { background: linear-gradient(90deg, transparent, #b8b0a4 15%, #b8b0a4 85%, transparent); }
+
+  /* Dust */
+  .dust {
+    position: absolute;
+    width: 1.5px; height: 1.5px;
+    background: var(--accent);
+    border-radius: 50%;
+    opacity: 0;
+    animation: float-dust 10s infinite ease-in-out;
+  }
+
+  @keyframes float-dust {
+    0%, 100% { opacity: 0; transform: translateY(0) translateX(0); }
+    30% { opacity: 0.25; }
+    50% { opacity: 0.12; transform: translateY(-70px) translateX(25px); }
+    70% { opacity: 0.25; }
+  }
+
+  /* ========== OBJECTS ========== */
+  .object {
+    position: absolute;
+    cursor: pointer;
+    transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .object:hover { filter: brightness(1.3); }
+  .object.hidden { opacity: 0; pointer-events: none; }
+
+  /* Hint glow for interactive objects */
+  .object.hint::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border: 1px solid var(--accent);
+    opacity: 0;
+    animation: hint-pulse 2.5s ease infinite;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  @keyframes hint-pulse {
+    0%, 100% { opacity: 0; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.04); }
+  }
+
+  /* ---- MIRROR ---- */
+  #mirror {
+    top: 40px; left: 80px;
+    width: 100px; height: 140px;
+    border: 3px solid #2a2a30;
+    border-radius: 50px 50px 4px 4px;
+    background: linear-gradient(170deg, #141418 0%, #0a0a0e 50%, #141418 100%);
+    overflow: hidden;
+  }
+
+  #mirror-surface {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-style: italic; font-size: 14px;
+    color: var(--dim);
+    text-align: center; padding: 10px; line-height: 1.6;
+    transition: color 0.6s;
+  }
+
+  #mirror.cracked::after {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(47deg, transparent 40%, rgba(255,255,255,0.05) 40.5%, transparent 41%),
+      linear-gradient(127deg, transparent 55%, rgba(255,255,255,0.05) 55.5%, transparent 56%);
+    pointer-events: none;
+  }
+
+  /* ---- CLOCK ---- */
+  #clock {
+    top: 55px; right: 100px;
+    width: 72px; height: 72px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Sometype Mono', monospace;
+    font-size: 13px; color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  #clock-hand {
+    position: absolute;
+    width: 1px; height: 18px;
+    background: var(--accent);
+    top: 14px; left: 50%;
+    transform-origin: bottom center;
+    animation: tick 4s steps(4) infinite;
+  }
+
+  @keyframes tick { to { transform: rotate(360deg); } }
+
+  /* ---- PAINTING ---- */
+  #painting {
+    top: 45px; left: 240px;
+    width: 150px; height: 105px;
+    border: 4px solid #2a2520;
+    background: #0e0c0a;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: all 1.5s ease;
+  }
+
+  #painting.revealed { opacity: 1; pointer-events: auto; }
+
+  #painting-content {
+    font-size: 11px; color: var(--dim);
+    text-align: center; line-height: 1.7;
+    padding: 8px; font-style: italic;
+  }
+
+  /* ---- BOOK ---- */
+  #book {
+    bottom: 110px; left: 140px;
+    width: 56px; height: 40px;
+    background: linear-gradient(135deg, #6B3410, #8B4513);
+    border-radius: 2px 4px 4px 2px;
+    box-shadow: -2px 2px 6px rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  #book::before {
+    content: '';
+    position: absolute; left: 0; top: 2px; bottom: 2px;
+    width: 4px;
+    background: #5a2a0a;
+    border-radius: 2px 0 0 2px;
+  }
+
+  #book-text {
+    font-size: 7px; color: #d4a574;
+    letter-spacing: 0.5px;
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+  }
+
+  /* ---- CANDLE ---- */
+  #candle {
+    bottom: 94px; left: 360px;
+    width: 16px; height: 52px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+
+  .flame {
+    width: 10px; height: 16px;
+    background: radial-gradient(ellipse at bottom, #f8d86a, #f0a030, transparent);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    animation: flicker 0.15s infinite alternate;
+    margin-bottom: 2px;
+    transition: opacity 0.5s;
+  }
+
+  .flame.out { animation: none; opacity: 0; }
+
+  /* Candle glow on floor */
+  #candle::after {
+    content: '';
+    position: absolute;
+    bottom: -6px; left: -30px;
+    width: 76px; height: 12px;
+    background: radial-gradient(ellipse, rgba(248,216,106,0.06), transparent);
+    transition: opacity 0.5s;
+  }
+
+  #candle.extinguished::after { opacity: 0; }
+
+  @keyframes flicker {
+    0% { transform: scale(1) rotate(-1deg); opacity: 0.85; }
+    100% { transform: scale(1.06) rotate(1deg); opacity: 1; }
+  }
+
+  .candle-body {
+    width: 14px; height: 36px;
+    background: linear-gradient(90deg, #c8c0b4, #e8e0d4, #c8c0b4);
+    border-radius: 1px;
+  }
+
+  /* ---- KEY ---- */
+  #key {
+    bottom: 130px; left: 310px;
+    width: 32px; height: 16px;
+    opacity: 0; pointer-events: none;
+    transition: all 0.8s ease;
+  }
+
+  #key.revealed { opacity: 1; pointer-events: auto; }
+  #key svg { width: 100%; height: 100%; }
+
+  /* ---- DOOR ---- */
+  #door {
+    bottom: 90px; right: 60px;
+    width: 72px; height: 135px;
+    background: #121216;
+    border: 2px solid #1e1e24;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+  }
+
+  #door-knob {
+    position: absolute;
+    right: 10px; top: 55%;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    transition: all 0.4s;
+    background: var(--danger);
+  }
+
+  #door.unlocked #door-knob { background: var(--sage); box-shadow: 0 0 12px rgba(122,196,154,0.3); }
+
+  /* Door light when open */
+  #door.unlocked::before {
+    content: '';
+    position: absolute;
+    inset: 4px; top: 4px;
+    background: linear-gradient(180deg, rgba(196,149,106,0.03), rgba(196,149,106,0.08));
+    border-radius: 2px 2px 0 0;
+  }
+
+  /* ---- RUG ---- */
+  #rug {
+    bottom: 58px; left: 50%;
+    transform: translateX(-50%);
+    width: 210px; height: 36px;
+    background: linear-gradient(90deg, #2a1515, #3a2020, #2a1515);
+    border-radius: 2px;
+    border: 1px solid #3a2525;
+    opacity: 0.7;
+  }
+
+  #rug-secret {
+    display: none;
+    font-size: 8px; color: var(--danger);
+    text-align: center; padding-top: 12px;
+    font-family: 'Sometype Mono', monospace;
+    letter-spacing: 2px;
+  }
+
+  /* ---- SHADOW ---- */
+  #shadow {
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50px; height: 110px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 3s ease;
+    z-index: 10;
+  }
+
+  #shadow.visible { opacity: 1; pointer-events: auto; }
+
+  #shadow-body {
+    width: 100%; height: 100%;
+    background: radial-gradient(ellipse, rgba(6,6,8,0.96), transparent 70%);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  #shadow-eyes {
+    display: flex; gap: 12px; margin-top: -20px;
+  }
+
+  .shadow-eye {
+    width: 5px; height: 5px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: eye-blink 5s infinite;
+  }
+
+  @keyframes eye-blink {
+    0%, 92%, 100% { transform: scaleY(1); }
+    95% { transform: scaleY(0.1); }
+  }
+
+  /* ========== UI ELEMENTS ========== */
+
+  /* Narrator */
+  #narrator {
+    position: fixed;
+    bottom: 32px; left: 50%;
+    transform: translateX(-50%);
+    max-width: 540px;
+    text-align: center;
+    font-size: 17px; font-weight: 300;
+    line-height: 1.8; color: var(--text);
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    pointer-events: none; z-index: 100;
+    letter-spacing: 0.3px;
+  }
+
+  #narrator.visible { opacity: 1; }
+  #narrator.lie { color: var(--danger); font-style: italic; }
+  #narrator.meta { color: var(--accent2); font-family: 'Sometype Mono', monospace; font-size: 12px; letter-spacing: 1px; }
+  #narrator.whisper { color: var(--dim); font-size: 14px; letter-spacing: 0.8px; }
+  #narrator.hint { color: var(--accent); font-size: 14px; font-family: 'Sometype Mono', monospace; letter-spacing: 1px; }
+
+  /* Progress diamonds */
+  #progress {
+    position: fixed; top: 20px; left: 20px;
+    display: flex; gap: 10px; z-index: 50;
+    opacity: 0; transition: opacity 0.8s ease;
+  }
+
+  #progress.visible { opacity: 1; }
+
+  .glyph {
+    width: 10px; height: 10px;
+    border: 1px solid #2a2a30;
+    transform: rotate(45deg);
+    transition: all 0.8s ease;
+  }
+
+  .glyph.lit {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--glow);
+  }
+
+  /* Inventory */
+  #inventory {
+    position: fixed; top: 20px; right: 20px;
+    display: flex; gap: 6px; z-index: 50;
+    opacity: 0; transition: opacity 0.8s ease;
+  }
+
+  #inventory.visible { opacity: 1; }
+
+  .inv-slot {
+    width: 40px; height: 40px;
+    border: 1px solid #1e1e24;
+    background: rgba(14, 14, 18, 0.8);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: all 0.4s;
+  }
+
+  .inv-slot.filled {
+    border-color: var(--accent);
+    box-shadow: 0 0 8px var(--glow);
+  }
+
+  /* Click counter */
+  #click-counter {
+    position: fixed; top: 20px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Sometype Mono', monospace;
+    font-size: 10px; color: #1e1e24;
+    letter-spacing: 2px; z-index: 50;
+    transition: color 1s;
+  }
+
+  /* ========== TITLE SCREEN ========== */
+  #title-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 1000;
+    transition: opacity 1.5s ease;
+  }
+
+  #title-screen.hidden { opacity: 0; pointer-events: none; }
+
+  #title-screen h1 {
+    font-size: 40px; font-weight: 300;
+    letter-spacing: 10px; color: var(--text);
+    animation: tfade 2.5s ease forwards; opacity: 0;
+  }
+
+  #title-screen .sub {
+    font-size: 13px; color: var(--dim);
+    letter-spacing: 4px; margin-bottom: 50px;
+    animation: tfade 2.5s ease 0.6s forwards; opacity: 0;
+  }
+
+  #title-screen .instructions {
+    font-family: 'Sometype Mono', monospace;
+    font-size: 10px; color: #2a2a30;
+    letter-spacing: 2px; margin-bottom: 40px;
+    text-align: center; line-height: 2.2;
+    animation: tfade 2.5s ease 1s forwards; opacity: 0;
+  }
+
+  #start-btn {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 15px; color: var(--accent);
+    background: none;
+    border: 1px solid var(--accent);
+    padding: 12px 36px;
+    cursor: pointer; letter-spacing: 3px;
+    text-transform: uppercase;
+    transition: all 0.4s ease;
+    animation: tfade 2.5s ease 1.4s forwards; opacity: 0;
+  }
+
+  #start-btn:hover { background: var(--accent); color: var(--bg); }
+
+  @keyframes tfade {
+    0% { opacity: 0; transform: translateY(15px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ========== END SCREEN ========== */
+  #end-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 2000;
+    opacity: 0; pointer-events: none;
+    transition: opacity 2.5s ease;
+  }
+
+  #end-screen.visible { opacity: 1; pointer-events: auto; }
+
+  #end-screen h2 {
+    font-size: 28px; font-weight: 300;
+    letter-spacing: 8px; color: var(--text);
+    margin-bottom: 24px;
+  }
+
+  #end-screen p {
+    font-size: 15px; color: var(--dim);
+    line-height: 2.2; text-align: center;
+    max-width: 400px;
+  }
+
+  #end-screen .stats {
+    font-family: 'Sometype Mono', monospace;
+    font-size: 10px; color: #2a2a30;
+    margin-top: 40px; letter-spacing: 2px;
+  }
+
+  /* Ripple */
+  .ripple {
+    position: absolute;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    animation: rip 0.8s ease forwards;
+    pointer-events: none;
+  }
+
+  @keyframes rip {
+    0% { width: 0; height: 0; opacity: 0.5; }
+    100% { width: 50px; height: 50px; opacity: 0; margin: -25px 0 0 -25px; }
+  }
+
+  /* Tooltip for first-timers */
+  .tooltip {
+    position: absolute;
+    font-family: 'Sometype Mono', monospace;
+    font-size: 9px; color: var(--accent);
+    letter-spacing: 1px; white-space: nowrap;
+    opacity: 0; animation: tooltip-show 3s ease 4s forwards;
+    pointer-events: none;
+  }
+
+  @keyframes tooltip-show {
+    0% { opacity: 0; }
+    20% { opacity: 0.6; }
+    80% { opacity: 0.6; }
+    100% { opacity: 0; }
+  }
+
+  #mirror-tooltip { top: 28px; left: 85px; }
+</style>
+</head>
+<body>
+
+<div id="grain"></div>
+
+<!-- TITLE -->
+<div id="title-screen">
+  <h1>THE ROOM REMEMBERS</h1>
+  <div class="sub">a puzzle in one room</div>
+  <div class="instructions">
+    CLICK OBJECTS TO INTERACT<br>
+    SOME OBJECTS LIE<br>
+    THE ROOM IS WATCHING
+  </div>
+  <button id="start-btn" onclick="startGame()">ENTER</button>
+</div>
+
+<!-- END -->
+<div id="end-screen">
+  <h2>THE ROOM FORGETS</h2>
+  <p id="end-text"></p>
+  <div class="stats">CLICKS: <span id="stat-clicks">0</span> &bull; LIES BELIEVED: <span id="stat-lies">0</span> &bull; TIME: <span id="stat-time">0</span>s</div>
+</div>
+
+<!-- GAME -->
+<div id="game-container" style="width:100vw;height:100vh;position:relative;">
+
+  <div id="progress">
+    <div class="glyph" id="g1"></div>
+    <div class="glyph" id="g2"></div>
+    <div class="glyph" id="g3"></div>
+    <div class="glyph" id="g4"></div>
+    <div class="glyph" id="g5"></div>
+  </div>
+
+  <div id="inventory">
+    <div class="inv-slot" id="slot1"></div>
+    <div class="inv-slot" id="slot2"></div>
+    <div class="inv-slot" id="slot3"></div>
+  </div>
+
+  <div id="click-counter">CLICKS: 0</div>
+
+  <div id="room">
+    <!-- Dust -->
+    <div class="dust" style="left:18%;top:25%;animation-delay:0s"></div>
+    <div class="dust" style="left:55%;top:18%;animation-delay:2.5s"></div>
+    <div class="dust" style="left:38%;top:55%;animation-delay:5s"></div>
+    <div class="dust" style="left:78%;top:35%;animation-delay:7s"></div>
+    <div class="dust" style="left:12%;top:65%;animation-delay:1.5s"></div>
+    <div class="dust" style="left:65%;top:70%;animation-delay:4s"></div>
+
+    <!-- Tooltip hint -->
+    <div class="tooltip" id="mirror-tooltip">← START HERE</div>
+
+    <!-- MIRROR -->
+    <div class="object hint" id="mirror" onclick="clickMirror()">
+      <div id="mirror-surface">you look<br>tired</div>
+    </div>
+
+    <!-- CLOCK -->
+    <div class="object" id="clock" onclick="clickClock()">
+      <div id="clock-hand"></div>
+      <span id="clock-display">12:00</span>
+    </div>
+
+    <!-- PAINTING (hidden) -->
+    <div class="object" id="painting" onclick="clickPainting()">
+      <div id="painting-content">a room within<br>a room within<br>a room</div>
+    </div>
+
+    <!-- BOOK -->
+    <div class="object" id="book" onclick="clickBook()">
+      <span id="book-text">RULES</span>
+    </div>
+
+    <!-- CANDLE -->
+    <div class="object" id="candle" onclick="clickCandle()">
+      <div class="flame" id="flame"></div>
+      <div class="candle-body"></div>
+    </div>
+
+    <!-- KEY (hidden) -->
+    <div class="object" id="key" onclick="clickKey()">
+      <svg viewBox="0 0 32 16" fill="none">
+        <circle cx="8" cy="8" r="6" stroke="#c4956a" stroke-width="1.5" fill="none"/>
+        <line x1="14" y1="8" x2="30" y2="8" stroke="#c4956a" stroke-width="1.5"/>
+        <line x1="26" y1="8" x2="26" y2="12" stroke="#c4956a" stroke-width="1.5"/>
+        <line x1="22" y1="8" x2="22" y2="11" stroke="#c4956a" stroke-width="1.5"/>
+      </svg>
+    </div>
+
+    <!-- DOOR -->
+    <div class="object" id="door" onclick="clickDoor()">
+      <div id="door-knob"></div>
+    </div>
+
+    <!-- RUG -->
+    <div class="object" id="rug" onclick="clickRug()">
+      <div id="rug-secret">SOMETHING IS HERE</div>
+    </div>
+
+    <!-- SHADOW -->
+    <div class="object" id="shadow" onclick="clickShadow()">
+      <div id="shadow-body">
+        <div id="shadow-eyes">
+          <div class="shadow-eye"></div>
+          <div class="shadow-eye" style="animation-delay:0.3s"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="narrator"></div>
+</div>
+
+<script>
+  // ========== STATE ==========
+  const S = {
+    started: false, ending: false,
+    clicks: 0, lies: 0, puzzles: 0, startTime: 0,
+    mirror: 0, clock: 0, clockTime: 0,
+    candle: 0, candleLit: true,
+    book: 0, rug: false,
+    paintingRevealed: false, painting: 0,
+    keyRevealed: false, keyCollected: false,
+    door: 0, doorUnlocked: false,
+    shadowVisible: false, shadow: 0,
+    hintTimer: null,
+    phase: 'explore', // explore -> discover -> collect -> escape -> end
+  };
+
+  let narQueue = [];
+  let narrating = false;
+
+  // ========== NARRATOR ==========
+  function say(text, type = '', dur = 3800) {
+    narQueue.push({ text, type, dur });
+    if (!narrating) drainQueue();
+  }
+
+  function drainQueue() {
+    if (!narQueue.length) { narrating = false; return; }
+    narrating = true;
+    const { text, type, dur } = narQueue.shift();
+    const el = document.getElementById('narrator');
+    el.className = 'visible ' + type;
+    el.textContent = '';
+    let i = 0;
+    function typeChar() {
+      if (i < text.length) {
+        el.textContent += text[i++];
+        setTimeout(typeChar, 28);
+      } else {
+        setTimeout(() => { el.className = ''; setTimeout(drainQueue, 350); }, dur);
+      }
+    }
+    typeChar();
+  }
+
+  function setProgress(n) {
+    S.puzzles = Math.max(S.puzzles, n);
+    for (let i = 1; i <= 5; i++) document.getElementById('g' + i).classList.toggle('lit', i <= S.puzzles);
+  }
+
+  function inv(emoji, slot) {
+    const el = document.getElementById('slot' + slot);
+    el.textContent = emoji;
+    el.classList.add('filled');
+  }
+
+  function click() {
+    S.clicks++;
+    document.getElementById('click-counter').textContent = 'CLICKS: ' + S.clicks;
+    if (S.clicks === 10) document.getElementById('click-counter').style.color = '#2a2a30';
+    if (S.clicks === 25) document.getElementById('click-counter').style.color = '#3a3a40';
+    if (S.clicks === 50) {
+      document.getElementById('click-counter').style.color = 'var(--dim)';
+      say("You've clicked 50 times. The room has noticed.", 'meta', 3000);
+    }
+  }
+
+  function addHint(objectId) {
+    clearTimeout(S.hintTimer);
+    S.hintTimer = setTimeout(() => {
+      document.querySelectorAll('.object').forEach(o => o.classList.remove('hint'));
+      const el = document.getElementById(objectId);
+      if (el && !el.classList.contains('hidden') && el.style.display !== 'none') {
+        el.classList.add('hint');
+      }
+    }, 8000);
+  }
+
+  // ========== START ==========
+  function startGame() {
+    document.getElementById('title-screen').classList.add('hidden');
+    S.started = true;
+    S.startTime = Date.now();
+    setTimeout(() => {
+      document.getElementById('progress').classList.add('visible');
+      document.getElementById('inventory').classList.add('visible');
+      say("You are in a room. The room has always been here.", 'whisper', 3500);
+      setTimeout(() => say("The mirror is watching. Start there.", 'hint', 3000), 4200);
+      addHint('mirror');
+    }, 1500);
+  }
+
+  // ========== MIRROR ==========
+  function clickMirror() {
+    if (S.ending) return; click();
+    S.mirror++;
+    document.getElementById('mirror').classList.remove('hint');
+    const surf = document.getElementById('mirror-surface');
+
+    if (S.mirror === 1) {
+      surf.innerHTML = "you look<br>closer";
+      say("The mirror shows something. It might not be you.");
+      addHint('mirror');
+    } else if (S.mirror === 2) {
+      surf.innerHTML = "it blinks<br>you don't";
+      say("The reflection blinks. You didn't.", '', 3500);
+      document.getElementById('mirror').classList.add('cracked');
+      addHint('mirror');
+    } else if (S.mirror === 3) {
+      surf.innerHTML = "don't trust<br>the clock";
+      say("\"Don't trust the clock,\" the reflection mouths.", '', 4000);
+      setProgress(1);
+      inv('🪞', 1);
+      say("The mirror has told you what it knows. Try the clock next.", 'hint', 3500);
+      addHint('clock');
+    } else if (S.mirror === 4 && !S.rug) {
+      surf.innerHTML = "the door<br>is open";
+      say("The mirror says the door is open. It's lying.", 'lie', 3500);
+      S.lies++;
+    } else if (!S.rug) {
+      surf.innerHTML = "look<br>beneath";
+      say("\"Look beneath the rug,\" the mirror whispers.", 'whisper', 3500);
+      addHint('rug');
+    } else if (!S.doorUnlocked) {
+      surf.innerHTML = "use the<br>key";
+      say("The mirror glances at the door.", 'whisper', 2500);
+      addHint('door');
+    } else {
+      const msgs = ["leave", "stay?", "...", "goodbye"];
+      surf.innerHTML = msgs[S.mirror % msgs.length];
+    }
+  }
+
+  // ========== CLOCK ==========
+  function clickClock() {
+    if (S.ending) return; click();
+    S.clock++;
+    const disp = document.getElementById('clock-display');
+
+    if (S.clock === 1) {
+      S.clockTime = 3; disp.textContent = '3:00';
+      say("The clock ticks forward. Or does it?");
+    } else if (S.clock === 2) {
+      S.clockTime = 6; disp.textContent = '6:00';
+      say("Time moves differently here. One more click.", '', 3000);
+    } else if (S.clock === 3) {
+      S.clockTime = 0; disp.textContent = '00:00';
+      say("The clock strikes midnight. Something appears on the wall.", '', 4000);
+      setProgress(2);
+      setTimeout(() => {
+        document.getElementById('painting').classList.add('revealed');
+        S.paintingRevealed = true;
+        say("A painting. It wasn't there before.", 'hint', 3000);
+        addHint('painting');
+      }, 2500);
+    } else if (S.clock === 4) {
+      disp.textContent = '??:??';
+      say("The clock insists it is morning. The room disagrees.", 'lie', 3500);
+      S.lies++;
+    } else {
+      disp.textContent = '∞';
+      say("Time has stopped meaning anything.", 'whisper', 2500);
+    }
+  }
+
+  // ========== CANDLE ==========
+  function clickCandle() {
+    if (S.ending) return; click();
+    S.candle++;
+    const flame = document.getElementById('flame');
+    const candle = document.getElementById('candle');
+
+    if (S.candleLit) {
+      flame.classList.add('out');
+      candle.classList.add('extinguished');
+      S.candleLit = false;
+      say("The flame dies. But you can still see. Curious.", 'whisper', 3500);
+
+      // Brief inversion
+      setTimeout(() => {
+        document.getElementById('room').classList.add('inverted');
+        say("The room shows its other face.", '', 2500);
+        setTimeout(() => document.getElementById('room').classList.remove('inverted'), 3000);
+      }, 1500);
+    } else {
+      flame.classList.remove('out');
+      candle.classList.remove('extinguished');
+      S.candleLit = true;
+      say("The flame returns. The shadows have shifted.", '', 3000);
+    }
+
+    if (S.candle === 3) {
+      setProgress(3);
+      say("You understand light and darkness. The book has more to teach.", 'hint', 3500);
+      addHint('book');
+    }
+  }
+
+  // ========== BOOK ==========
+  function clickBook() {
+    if (S.ending) return; click();
+    S.book++;
+    const text = document.getElementById('book-text');
+
+    if (S.book === 1) {
+      text.textContent = 'R.1';
+      say("\"Rule 1: Objects in this room may deceive you.\"", '', 4000);
+    } else if (S.book === 2) {
+      text.textContent = 'R.2';
+      say("\"Rule 2: The room remembers everything you do.\"", '', 4000);
+    } else if (S.book === 3) {
+      text.textContent = 'R.3?';
+      say("\"Rule 3: There is no Rule 3.\" This feels like a lie.", 'lie', 4000);
+      S.lies++;
+    } else if (S.book === 4) {
+      text.textContent = 'R.4';
+      say("\"Rule 4: The key is never where you expect.\"", '', 4000);
+      say("Have you checked under the rug?", 'hint', 3000);
+      addHint('rug');
+    } else {
+      text.textContent = '...';
+      say("The pages are blank now. The book has said enough.", 'whisper', 3000);
+    }
+  }
+
+  // ========== RUG ==========
+  function clickRug() {
+    if (S.ending) return; click();
+
+    if (!S.rug) {
+      S.rug = true;
+      document.getElementById('rug-secret').style.display = 'block';
+      say("The rug shifts. Something glints underneath.", '', 3500);
+      setProgress(4);
+
+      setTimeout(() => {
+        document.getElementById('key').classList.add('revealed');
+        S.keyRevealed = true;
+        say("A key. The book said it wouldn't be here. The book lied.", '', 4000);
+        addHint('key');
+      }, 2500);
+    } else {
+      say("Nothing else under the rug. Probably.", 'whisper', 2500);
+    }
+  }
+
+  // ========== KEY ==========
+  function clickKey() {
+    if (S.ending) return; click();
+
+    if (!S.keyCollected) {
+      S.keyCollected = true;
+      document.getElementById('key').style.display = 'none';
+      inv('🗝️', 2);
+      say("The key is warm. It was waiting for you.", '', 3500);
+      say("The door is waiting too.", 'hint', 3000);
+      addHint('door');
+    }
+  }
+
+  // ========== PAINTING ==========
+  function clickPainting() {
+    if (S.ending) return; click();
+    S.painting++;
+    const content = document.getElementById('painting-content');
+
+    if (S.painting === 1) {
+      content.innerHTML = "a room within<br>a room within<br>a room within...";
+      say("A painting of this room. In the painting, you're looking at a painting.");
+    } else if (S.painting === 2) {
+      content.innerHTML = "the painted room<br>has no mirror";
+      say("The room in the painting is different. Something is missing.", '', 3500);
+    } else if (S.painting === 3) {
+      content.innerHTML = "the door<br>is open<br>in here";
+      say("In the painted room, the door is open.", '', 3500);
+    } else {
+      content.innerHTML = "stop looking<br>start leaving";
+    }
+  }
+
+  // ========== DOOR ==========
+  function clickDoor() {
+    if (S.ending) return; click();
+    S.door++;
+
+    if (!S.keyCollected) {
+      if (S.door === 1) say("The door is locked. It has been locked for a very long time.");
+      else say("Still locked. The door appreciates your persistence.", '', 3000);
+      if (!S.rug) {
+        say("You'll need a key. The room is hiding one.", 'hint', 3000);
+        addHint('rug');
+      } else if (!S.keyCollected) {
+        say("Pick up the key first.", 'hint', 2500);
+        addHint('key');
+      }
+      return;
+    }
+
+    if (!S.doorUnlocked) {
+      S.doorUnlocked = true;
+      document.getElementById('door').classList.add('unlocked');
+      say("The lock turns. The door sighs.", '', 3500);
+      inv('🚪', 3);
+      setProgress(5);
+
+      // Shadow appears
+      setTimeout(() => {
+        document.getElementById('shadow').classList.add('visible');
+        S.shadowVisible = true;
+        say("Something stands in the center of the room. It was always there.", 'whisper', 5000);
+      }, 4000);
+    } else {
+      // Trigger ending
+      triggerEnding();
+    }
+  }
+
+  // ========== SHADOW ==========
+  function clickShadow() {
+    if (S.ending) return; click();
+    S.shadow++;
+
+    if (S.shadow === 1) {
+      say("It looks at you the way you look at it.", 'whisper', 4000);
+    } else if (S.shadow === 2) {
+      const adj = S.clicks < 25 ? "impatient" : S.clicks < 45 ? "curious" : "thorough";
+      say(`// the player clicked ${S.clicks} times. they are ${adj}.`, 'meta', 4000);
+    } else if (S.shadow === 3) {
+      say("// this is a game. you are playing it. or it is playing you.", 'meta', 4500);
+    } else {
+      say("It steps aside. The door is waiting.", 'whisper', 3000);
+      document.getElementById('shadow').style.transform = 'translate(-120%, -50%)';
+      addHint('door');
+    }
+  }
+
+  // ========== ENDING ==========
+  function triggerEnding() {
+    S.ending = true;
+    const elapsed = Math.round((Date.now() - S.startTime) / 1000);
+
+    say("The door opens. Beyond it: another room. Identical.", '', 4500);
+    setTimeout(() => say("You realize the room doesn't remember you. It remembers itself.", 'whisper', 5500), 5000);
+
+    setTimeout(() => document.getElementById('room').classList.add('expanded'), 9000);
+    setTimeout(() => document.title = 'The Room Forgets', 9500);
+
+    setTimeout(() => {
+      const end = document.getElementById('end-screen');
+      end.classList.add('visible');
+      document.getElementById('stat-clicks').textContent = S.clicks;
+      document.getElementById('stat-lies').textContent = S.lies;
+      document.getElementById('stat-time').textContent = elapsed;
+
+      let t = "You explored a room that knew you were exploring it. ";
+      if (S.clicks < 22) t += "You moved quickly — the room barely had time to lie to you.";
+      else if (S.clicks < 40) t += "You were curious enough to listen, skeptical enough to doubt.";
+      else t += "You touched everything. The room will remember that, even if it forgets you.";
+
+      if (S.lies > 0) t += `<br><br>The room lied to you ${S.lies} time${S.lies > 1 ? 's' : ''}. You believed ${S.lies > 1 ? 'them all' : 'it'}.`;
+      else t += "<br><br>The room tried to lie. You never believed it.";
+
+      document.getElementById('end-text').innerHTML = t;
+    }, 12000);
+  }
+
+  // ========== AMBIENT CLICKS ==========
+  document.getElementById('room').addEventListener('click', function(e) {
+    if (e.target === this || e.target.classList.contains('dust')) {
+      const r = document.createElement('div');
+      r.className = 'ripple';
+      r.style.left = e.offsetX + 'px';
+      r.style.top = e.offsetY + 'px';
+      this.appendChild(r);
+      setTimeout(() => r.remove(), 800);
+
+      if (S.started && !S.ending && Math.random() < 0.15) {
+        const lines = [
+          "The walls hum quietly.",
+          "Something shifts in the corner of your eye.",
+          "The room breathes.",
+          "The floor creaks, remembering your weight.",
+          "A draft from nowhere.",
+        ];
+        say(lines[Math.floor(Math.random() * lines.length)], 'whisper', 2500);
+      }
+    }
+  });
+
+  // ========== KEYBOARD SECRETS ==========
+  let buf = '';
+  document.addEventListener('keydown', e => {
+    if (!S.started || S.ending) return;
+    buf = (buf + e.key.toLowerCase()).slice(-10);
+    if (buf.includes('help')) { say("There is no help. There is only the room.", 'meta', 3000); buf = ''; }
+    if (buf.includes('exit')) { say("// exit(0): the room does not compile", 'meta', 3000); buf = ''; }
+    if (buf.includes('who')) { say("You are the player. Unless you're the room.", 'whisper', 3500); buf = ''; }
+    if (buf.includes('lie')) { say("Everything here is true. Even the lies.", 'lie', 3000); buf = ''; }
+  });
+</script>
+</body>
+</html>

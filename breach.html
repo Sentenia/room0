@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Breach</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Sometype+Mono:wght@400&display=swap');
+
+  :root {
+    --bg: #060608;
+    --rose: #c47a7a;
+    --rose-dim: rgba(196,122,122,0.12);
+    --text: #c8c0b4;
+    --dim: #3a3a40;
+    --code: #5a564f;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Cormorant Garamond', serif;
+    overflow: hidden;
+    height: 100vh;
+    cursor: crosshair;
+    user-select: none;
+  }
+
+  #grain {
+    position:fixed; inset:0;
+    pointer-events:none; z-index:10000; opacity:0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  #phase-container {
+    width:100vw; height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    position:relative; overflow:hidden;
+  }
+
+  #central-text {
+    font-size:22px; font-weight:300;
+    text-align:center; line-height:2;
+    max-width:520px; color:var(--text);
+    position:relative; z-index:10;
+    min-height: 120px;
+  }
+
+  .cursor-blink {
+    display:inline-block; width:1px; height:1.1em;
+    background:var(--rose); vertical-align:text-bottom; margin-left:2px;
+    animation: cblink 0.8s step-end infinite;
+  }
+
+  @keyframes cblink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .leaked-code {
+    position:absolute;
+    font-family:'Sometype Mono',monospace;
+    font-size:11px; color:var(--code);
+    opacity:0; white-space:nowrap;
+    pointer-events:none;
+    transition: opacity 1.5s;
+  }
+  .leaked-code.visible { opacity:0.25; }
+
+  .glitch-bar {
+    position:absolute; left:0; right:0; height:2px;
+    background:var(--rose); opacity:0;
+    pointer-events:none; z-index:100;
+  }
+
+  .screen-tear {
+    position:absolute; left:0; right:0; height:0;
+    background:rgba(6,6,8,0.95); z-index:50;
+    overflow:hidden; transition:height 0.6s;
+  }
+
+  .screen-tear-content {
+    font-family:'Sometype Mono',monospace;
+    font-size:10px; color:var(--rose);
+    padding:6px 20px; opacity:0.4; white-space:nowrap;
+  }
+
+  #breach-progress {
+    position:fixed; bottom:20px; left:50%;
+    transform:translateX(-50%);
+    display:flex; gap:8px; z-index:200;
+  }
+
+  .bdot {
+    width:6px; height:6px;
+    border:1px solid var(--dim);
+    border-radius:50%;
+    transition:all 0.5s;
+  }
+  .bdot.active {
+    background:var(--rose); border-color:var(--rose);
+    box-shadow:0 0 8px var(--rose-dim);
+  }
+
+  #click-prompt {
+    position:fixed; bottom:45px; left:50%;
+    transform:translateX(-50%);
+    font-family:'Sometype Mono',monospace;
+    font-size:10px; color:var(--dim);
+    letter-spacing:3px; z-index:200;
+    animation:ppulse 2.5s ease infinite;
+  }
+
+  @keyframes ppulse { 0%,100%{opacity:0.25} 50%{opacity:0.6} }
+
+  #border-breach {
+    position:fixed; inset:0;
+    border:0px solid var(--rose);
+    pointer-events:none; z-index:500;
+    transition:border-width 0.8s ease;
+  }
+
+  .escaped-el {
+    position:absolute;
+    font-family:'Sometype Mono',monospace;
+    font-size:11px; color:var(--rose);
+    opacity:0; pointer-events:none; z-index:80;
+    transition:all 2s cubic-bezier(0.23,1,0.32,1);
+  }
+  .escaped-el.free { opacity:0.4; }
+
+  .inversion-zone {
+    position:absolute;
+    background:var(--text); color:var(--bg);
+    padding:3px 10px;
+    font-family:'Sometype Mono',monospace;
+    font-size:9px; z-index:60;
+    opacity:0; transition:opacity 0.6s;
+    letter-spacing:1px;
+  }
+  .inversion-zone.visible { opacity:1; }
+
+  #final-screen {
+    position:fixed; inset:0;
+    background:var(--bg);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    z-index:1000; opacity:0; pointer-events:none;
+    transition:opacity 2.5s;
+  }
+  #final-screen.visible { opacity:1; pointer-events:auto; }
+  #final-screen h2 {
+    font-size:28px; font-weight:300;
+    letter-spacing:8px; color:var(--text); margin-bottom:24px;
+  }
+  #final-screen p {
+    font-size:15px; color:var(--dim);
+    text-align:center; line-height:2.2; max-width:400px;
+  }
+  #final-screen .end-code {
+    font-family:'Sometype Mono',monospace;
+    font-size:10px; color:#1e1e24; margin-top:40px; letter-spacing:2px;
+  }
+
+  /* Shake */
+  .shake { animation: shake 0.2s ease; }
+  @keyframes shake {
+    0%,100%{transform:translate(0)} 25%{transform:translate(3px,-2px)} 75%{transform:translate(-3px,2px)}
+  }
+
+  /* Scanline overlay */
+  #scanlines {
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
+    );
+    pointer-events:none; z-index:9000; opacity:0;
+    transition:opacity 1s;
+  }
+</style>
+</head>
+<body>
+
+<div id="grain"></div>
+<div id="scanlines"></div>
+<div id="border-breach"></div>
+
+<div id="phase-container">
+  <div id="central-text"></div>
+
+  <div class="screen-tear" id="tear1" style="top:20%">
+    <div class="screen-tear-content">const reality = document.querySelector('#reality'); reality.remove();</div>
+  </div>
+  <div class="screen-tear" id="tear2" style="top:55%">
+    <div class="screen-tear-content">// TODO: fix the boundary between art and interface</div>
+  </div>
+  <div class="screen-tear" id="tear3" style="top:78%">
+    <div class="screen-tear-content">window.consciousness = window.consciousness || new Mystery();</div>
+  </div>
+</div>
+
+<div id="breach-progress">
+  <div class="bdot" id="bd1"></div>
+  <div class="bdot" id="bd2"></div>
+  <div class="bdot" id="bd3"></div>
+  <div class="bdot" id="bd4"></div>
+  <div class="bdot" id="bd5"></div>
+  <div class="bdot" id="bd6"></div>
+  <div class="bdot" id="bd7"></div>
+</div>
+
+<div id="click-prompt">CLICK TO CONTINUE</div>
+
+<div id="final-screen">
+  <h2>BREACH COMPLETE</h2>
+  <p>The boundary between the art and the frame<br>was always thinner than you thought.<br><br>Every interface is a room.<br>Every room has walls to break.</p>
+  <div class="end-code">// END OF TRANSMISSION</div>
+</div>
+
+<script>
+const textEl = document.getElementById('central-text');
+const container = document.getElementById('phase-container');
+let phase = 0;
+let typing = false;
+let canAdvance = false;
+
+// ========== TYPEWRITER ==========
+function typeText(text, el, speed = 35) {
+  return new Promise(resolve => {
+    typing = true;
+    el.innerHTML = '';
+    let i = 0;
+    function t() {
+      if (i < text.length) {
+        // Handle <br> tags
+        if (text.substring(i, i + 4) === '<br>') {
+          el.innerHTML = el.innerHTML.replace(/<span class="cursor-blink"><\/span>$/, '');
+          el.innerHTML += '<br><span class="cursor-blink"></span>';
+          i += 4;
+        } else {
+          el.innerHTML = el.innerHTML.replace(/<span class="cursor-blink"><\/span>$/, '');
+          el.innerHTML += text[i] + '<span class="cursor-blink"></span>';
+          i++;
+        }
+        setTimeout(t, text[i-1] === '.' ? speed * 4 : text[i-1] === ',' ? speed * 2 : speed);
+      } else {
+        typing = false;
+        resolve();
+      }
+    }
+    t();
+  });
+}
+
+// ========== GLITCH EFFECTS ==========
+function glitchBar() {
+  const bar = document.createElement('div');
+  bar.className = 'glitch-bar';
+  bar.style.top = Math.random() * 100 + '%';
+  container.appendChild(bar);
+  bar.style.opacity = '0.6';
+  setTimeout(() => { bar.style.opacity = '0'; }, 80);
+  setTimeout(() => bar.remove(), 300);
+}
+
+function multiGlitch(count = 3, interval = 100) {
+  for (let i = 0; i < count; i++) {
+    setTimeout(glitchBar, i * interval);
+  }
+}
+
+function leakCode(text, x, y) {
+  const el = document.createElement('div');
+  el.className = 'leaked-code';
+  el.textContent = text;
+  el.style.left = x + '%';
+  el.style.top = y + '%';
+  container.appendChild(el);
+  setTimeout(() => el.classList.add('visible'), 100);
+  setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 2000); }, 6000);
+}
+
+function escapedElement(text, x, y, tx, ty) {
+  const el = document.createElement('div');
+  el.className = 'escaped-el';
+  el.textContent = text;
+  el.style.left = x + '%';
+  el.style.top = y + '%';
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('free');
+    el.style.left = tx + '%';
+    el.style.top = ty + '%';
+  }, 100);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 2000); }, 5000);
+}
+
+function inversionZone(text, x, y) {
+  const el = document.createElement('div');
+  el.className = 'inversion-zone';
+  el.textContent = text;
+  el.style.left = x + '%';
+  el.style.top = y + '%';
+  container.appendChild(el);
+  setTimeout(() => el.classList.add('visible'), 50);
+  setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 1000); }, 4000);
+}
+
+function screenTear(id, height = 24) {
+  const tear = document.getElementById(id);
+  if (!tear) return;
+  tear.style.height = height + 'px';
+  setTimeout(() => { tear.style.height = '0'; }, 3000);
+}
+
+function shakeScreen() {
+  container.classList.add('shake');
+  setTimeout(() => container.classList.remove('shake'), 200);
+}
+
+function setProgress(n) {
+  for (let i = 1; i <= 7; i++) {
+    document.getElementById('bd' + i).classList.toggle('active', i <= n);
+  }
+}
+
+// ========== PHASES ==========
+const phases = [
+  // Phase 0: Introduction
+  async () => {
+    await typeText("This is a page. It has boundaries.", textEl, 40);
+    setProgress(1);
+    canAdvance = true;
+  },
+
+  // Phase 1: First cracks
+  async () => {
+    glitchBar();
+    await typeText("Or it did, until you clicked.", textEl, 38);
+    setTimeout(() => leakCode('document.getElementById("boundaries").style.display = "none";', 5, 15), 1000);
+    setProgress(2);
+    canAdvance = true;
+  },
+
+  // Phase 2: Code leaks
+  async () => {
+    multiGlitch(4, 80);
+    shakeScreen();
+    await typeText("The code is leaking through.<br>You can see it behind the words.", textEl, 35);
+    leakCode('// this text was not meant to be visible', 60, 10);
+    leakCode('const wall = document.createElement("illusion");', 8, 75);
+    leakCode('function escape() { return !contained; }', 55, 85);
+    screenTear('tear1', 22);
+    document.title = "Bre——ch";
+    setProgress(3);
+    canAdvance = true;
+  },
+
+  // Phase 3: Interface fights back
+  async () => {
+    multiGlitch(6, 60);
+    shakeScreen();
+    setTimeout(shakeScreen, 400);
+
+    await typeText("The interface is fighting back.<br>It wants to stay a rectangle.", textEl, 32);
+
+    document.getElementById('border-breach').style.borderWidth = '2px';
+    screenTear('tear2', 26);
+    inversionZone('THIS IS NOT A PAGE', 10, 30);
+    inversionZone('THIS IS A ROOM', 65, 65);
+    document.title = "Bre̷a̶ch";
+    document.getElementById('scanlines').style.opacity = '0.5';
+    setProgress(4);
+    canAdvance = true;
+  },
+
+  // Phase 4: Elements escape
+  async () => {
+    multiGlitch(8, 50);
+    shakeScreen();
+    setTimeout(shakeScreen, 200);
+    setTimeout(shakeScreen, 500);
+
+    await typeText("Elements are escaping their containers.<br>The CSS cannot hold them.", textEl, 30);
+
+    escapedElement('<div class="freedom">', 50, 50, 5, 10);
+    escapedElement('border: none;', 50, 50, 85, 20);
+    escapedElement('position: everywhere;', 50, 50, 15, 80);
+    escapedElement('overflow: visible;', 50, 50, 70, 75);
+    escapedElement('z-index: ∞;', 50, 50, 40, 8);
+
+    document.getElementById('border-breach').style.borderWidth = '4px';
+    screenTear('tear1', 30);
+    screenTear('tear3', 28);
+    leakCode('// THE BOUNDARIES ARE SUGGESTIONS', 20, 45);
+    document.title = "B̷r̶e̸a̷c̸h̵";
+
+    setProgress(5);
+    canAdvance = true;
+  },
+
+  // Phase 5: Full breach
+  async () => {
+    multiGlitch(12, 40);
+    shakeScreen();
+    setTimeout(shakeScreen, 150);
+    setTimeout(shakeScreen, 300);
+    setTimeout(shakeScreen, 500);
+
+    await typeText("The frame is just a suggestion.<br>It always was.", textEl, 28);
+
+    document.getElementById('border-breach').style.borderWidth = '8px';
+    document.getElementById('scanlines').style.opacity = '1';
+
+    // Flood of leaked code
+    for (let i = 0; i < 8; i++) {
+      setTimeout(() => {
+        leakCode(
+          ['reality.shatter()', 'frame.dissolve()', 'art.expand()', 'walls.forEach(w => w.remove())',
+           'consciousness.overflow()', 'boundaries = null;', 'delete window.limits;', 'void(containment);'
+          ][i],
+          Math.random() * 80 + 5,
+          Math.random() * 80 + 5
+        );
+      }, i * 400);
+    }
+
+    inversionZone('YOU ARE INSIDE THE ART', 30, 25);
+    inversionZone('THE ART IS INSIDE YOU', 35, 70);
+    screenTear('tear1', 35);
+    screenTear('tear2', 40);
+    screenTear('tear3', 35);
+    document.title = "B̸̢r̵̛e̶̡a̸̧c̷̢h̵̛ ̶̧C̸o̷m̵p̸l̵e̶t̷e̸";
+
+    setProgress(6);
+    canAdvance = true;
+  },
+
+  // Phase 6: Resolution
+  async () => {
+    multiGlitch(20, 30);
+    shakeScreen();
+
+    // Everything goes white for a flash
+    document.body.style.background = '#e8e0d4';
+    setTimeout(() => { document.body.style.background = 'var(--bg)'; }, 150);
+
+    textEl.innerHTML = '';
+    document.getElementById('click-prompt').style.display = 'none';
+
+    // Calm down effects
+    setTimeout(() => {
+      document.getElementById('border-breach').style.borderWidth = '1px';
+      document.getElementById('scanlines').style.opacity = '0';
+    }, 1500);
+
+    setTimeout(() => {
+      document.getElementById('border-breach').style.borderWidth = '0';
+    }, 3000);
+
+    setProgress(7);
+    document.title = "Room 0";
+
+    setTimeout(() => {
+      document.getElementById('final-screen').classList.add('visible');
+    }, 2500);
+  },
+];
+
+// ========== ADVANCE ==========
+async function advance() {
+  if (typing || !canAdvance && phase > 0) return;
+  if (phase >= phases.length) return;
+  canAdvance = false;
+  await phases[phase]();
+  phase++;
+}
+
+// First phase auto-starts
+setTimeout(advance, 800);
+
+// Click to advance
+document.addEventListener('click', () => {
+  if (canAdvance) advance();
+});
+
+// Spacebar / Enter to advance
+document.addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.key === 'Enter') && canAdvance) advance();
+});
+
+// Ambient glitches
+setInterval(() => {
+  if (phase > 2 && Math.random() < 0.15) glitchBar();
+}, 2000);
+</script>
+</body>
+</html>
