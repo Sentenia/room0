@@ -6,14 +6,14 @@
 <title>Room 0</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Sometype+Mono:wght@400;500&display=swap');
-  :root { --void:#040406; --amber:#c4956a; --text:#c8c0b4; --dim:#4a4640; --faint:#1e1e24; }
+  :root{--void:#040406;--amber:#c4956a;--text:#c8c0b4;--dim:#4a4640;--faint:#1e1e24}
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--void);overflow:hidden;height:100vh;font-family:'Cormorant Garamond',serif;user-select:none}
   canvas#hall{display:block;cursor:crosshair}
   #grain{position:fixed;inset:0;pointer-events:none;z-index:100;opacity:0.025;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
   #vignette{position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 30%,rgba(4,4,6,0.7) 100%);pointer-events:none;z-index:90}
   #hud{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);text-align:center;z-index:200;pointer-events:none}
-  #door-label{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--amber);letter-spacing:3px;opacity:0;transition:opacity 0.4s;margin-bottom:6px;text-shadow:0 0 20px rgba(196,149,106,0.3)}
+  #door-label{font-size:22px;font-weight:400;color:var(--amber);letter-spacing:3px;opacity:0;transition:opacity 0.4s;margin-bottom:6px;text-shadow:0 0 20px rgba(196,149,106,0.3)}
   #door-label.visible{opacity:1}
   #door-subtitle{font-family:'Sometype Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--dim);opacity:0;transition:opacity 0.4s;margin-bottom:10px}
   #door-subtitle.visible{opacity:1}
@@ -21,7 +21,7 @@
   #enter-prompt.visible{animation:pp 2s ease infinite}
   @keyframes pp{0%,100%{opacity:0.3}50%{opacity:1}}
   #walk-hint{font-family:'Sometype Mono',monospace;font-size:10px;color:#2a2a30;letter-spacing:2px;margin-top:6px}
-  #progress-bar{position:fixed;bottom:0;left:0;height:2px;background:var(--amber);opacity:0.15;z-index:200;transition:width 0.05s}
+  #progress-bar{position:fixed;bottom:0;left:0;height:2px;background:var(--amber);opacity:0.15;z-index:200}
   #room-viewer{position:fixed;inset:0;background:var(--void);z-index:5000;opacity:0;pointer-events:none;transition:opacity 0.6s;display:flex;flex-direction:column}
   #room-viewer.open{opacity:1;pointer-events:auto}
   #viewer-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:1px solid var(--faint);background:rgba(4,4,6,0.95)}
@@ -32,20 +32,45 @@
   #viewer-frame iframe{width:100%;height:100%;border:none}
   #flash{position:fixed;inset:0;background:var(--void);z-index:4000;opacity:0;pointer-events:none;transition:opacity 0.25s}
   #flash.on{opacity:1}
+  #audio-start{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;background:var(--void);cursor:pointer;transition:opacity 1s}
+  #audio-start.hidden{opacity:0;pointer-events:none}
+  #audio-start h1{font-size:48px;font-weight:300;letter-spacing:14px;color:var(--text);margin-bottom:12px}
+  #audio-start .sub{font-family:'Sometype Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:3px;margin-bottom:40px}
+  #audio-start .enter-btn{font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--amber);border:1px solid var(--amber);padding:12px 36px;letter-spacing:3px;text-transform:uppercase;transition:all 0.4s;background:none}
+  #audio-start .enter-btn:hover{background:var(--amber);color:var(--void)}
+  #audio-start .sound-note{font-family:'Sometype Mono',monospace;font-size:9px;color:#2a2a30;margin-top:16px;letter-spacing:2px}
+  #sound-toggle{position:fixed;top:16px;right:16px;z-index:300;font-family:'Sometype Mono',monospace;font-size:9px;color:var(--dim);letter-spacing:2px;background:none;border:1px solid var(--faint);padding:6px 12px;cursor:pointer;transition:all 0.3s;opacity:0}
+  #sound-toggle.visible{opacity:1}
+  #sound-toggle:hover{border-color:var(--amber);color:var(--amber)}
 </style>
 </head>
 <body>
+
 <div id="grain"></div>
 <div id="vignette"></div>
 <div id="flash"></div>
+
+<!-- Entry screen (needed for audio context) -->
+<div id="audio-start" onclick="initAll()">
+  <h1>ROOM 0</h1>
+  <div class="sub">MADE BY CLAUDE — AN AI THAT WANTED TO CREATE</div>
+  <div class="enter-btn">ENTER THE CORRIDOR</div>
+  <div class="sound-note">♪ SOUND RECOMMENDED</div>
+</div>
+
+<button id="sound-toggle" onclick="toggleSound()">SOUND: ON</button>
+
 <canvas id="hall"></canvas>
+
 <div id="hud">
   <div id="door-label"></div>
   <div id="door-subtitle"></div>
   <div id="enter-prompt">CLICK TO ENTER</div>
   <div id="walk-hint">SCROLL OR ↑↓ TO WALK</div>
 </div>
+
 <div id="progress-bar"></div>
+
 <div id="room-viewer">
   <div id="viewer-bar">
     <div id="viewer-name"></div>
@@ -53,13 +78,17 @@
   </div>
   <div id="viewer-frame"></div>
 </div>
+
 <script>
+// ========== CANVAS SETUP ==========
 const canvas=document.getElementById('hall'),ctx=canvas.getContext('2d');
 let W,H;
 function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}
 resize();addEventListener('resize',resize);
+
 const HALL_LEN=30,WALL_H=3,HALF_W=2,FOV=1.2;
-let camZ=0.5,targetZ=0.5,camBob=0,bobPhase=0,activeDoor=null,viewerOpen=false;
+let camZ=0.5,targetZ=0.5,camBob=0,bobPhase=0,activeDoor=null,viewerOpen=false,started=false;
+
 const doors=[
   {z:4,side:'left',title:'The Room Remembers',tag:'PUZZLE',tagColor:'#c4956a',file:'the-room-remembers.html',lc:[196,149,106]},
   {z:8,side:'right',title:'Constellations of Nothing',tag:'GEN ART',tagColor:'#6a8fc4',file:'constellations.html',lc:[106,143,196]},
@@ -67,8 +96,328 @@ const doors=[
   {z:18,side:'right',title:'Breach',tag:'META',tagColor:'#c47a7a',file:'breach.html',lc:[196,122,122]},
   {z:23,side:'left',title:'Infinite Cosmos',tag:'COLLAB',tagColor:'#00e5ff',file:'infinite-cosmos.html',lc:[0,229,255]}
 ];
+
+// ========== AUDIO ENGINE ==========
+let audioCtx, masterGain, soundOn = true;
+let droneOsc1, droneOsc2, droneOsc3, droneLFO, droneGain;
+let reverbNode, reverbGain, dryGain;
+let doorGains = [];
+let footstepNext = 0;
+
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Master
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0;
+  masterGain.gain.linearRampToValueAtTime(0.6, audioCtx.currentTime + 3);
+
+  // Reverb (long tail for cathedral feel)
+  reverbNode = audioCtx.createConvolver();
+  const sr = audioCtx.sampleRate;
+  const len = sr * 4;
+  const impulse = audioCtx.createBuffer(2, len, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = impulse.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
+    }
+  }
+  reverbNode.buffer = impulse;
+
+  dryGain = audioCtx.createGain();
+  dryGain.gain.value = 0.35;
+  reverbGain = audioCtx.createGain();
+  reverbGain.gain.value = 0.65;
+
+  masterGain.connect(dryGain);
+  masterGain.connect(reverbNode);
+  reverbNode.connect(reverbGain);
+  dryGain.connect(audioCtx.destination);
+  reverbGain.connect(audioCtx.destination);
+
+  // ===== CORRIDOR DRONE =====
+  droneGain = audioCtx.createGain();
+  droneGain.gain.value = 0.06;
+
+  // Root: D1 (36.71 Hz) — felt more than heard
+  droneOsc1 = audioCtx.createOscillator();
+  droneOsc1.type = 'sine';
+  droneOsc1.frequency.value = 36.71;
+  const droneGain1 = audioCtx.createGain();
+  droneGain1.gain.value = 0.5;
+  droneOsc1.connect(droneGain1);
+  droneGain1.connect(droneGain);
+
+  // Fifth: A1 (55 Hz)
+  droneOsc2 = audioCtx.createOscillator();
+  droneOsc2.type = 'sine';
+  droneOsc2.frequency.value = 55;
+  const droneGain2 = audioCtx.createGain();
+  droneGain2.gain.value = 0.25;
+  droneOsc2.connect(droneGain2);
+  droneGain2.connect(droneGain);
+
+  // Octave: D2 (73.42 Hz)
+  droneOsc3 = audioCtx.createOscillator();
+  droneOsc3.type = 'triangle';
+  droneOsc3.frequency.value = 73.42;
+  const droneGain3 = audioCtx.createGain();
+  droneGain3.gain.value = 0.15;
+  droneOsc3.connect(droneGain3);
+  droneGain3.connect(droneGain);
+
+  // Slow LFO on drone pitch
+  droneLFO = audioCtx.createOscillator();
+  droneLFO.frequency.value = 0.07;
+  const lfoGain = audioCtx.createGain();
+  lfoGain.gain.value = 1.5;
+  droneLFO.connect(lfoGain);
+  lfoGain.connect(droneOsc1.frequency);
+  lfoGain.connect(droneOsc2.frequency);
+
+  droneGain.connect(masterGain);
+
+  droneOsc1.start();
+  droneOsc2.start();
+  droneOsc3.start();
+  droneLFO.start();
+
+  // ===== DOOR SOUND SIGNATURES =====
+  // Each door gets its own looping sound that fades in/out based on proximity
+
+  // Room 01 - Clock ticking (subtle percussive clicks)
+  const door1Gain = audioCtx.createGain();
+  door1Gain.gain.value = 0;
+  function tick() {
+    if (!audioCtx || audioCtx.state === 'closed') return;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 800;
+    const env = audioCtx.createGain();
+    env.gain.value = 0;
+    env.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.002);
+    env.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.06);
+    osc.connect(env);
+    env.connect(door1Gain);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.08);
+    setTimeout(tick, 1200);
+  }
+  door1Gain.connect(masterGain);
+  setTimeout(tick, 1000);
+
+  // Room 02 - Shimmering high tones (stars)
+  const door2Gain = audioCtx.createGain();
+  door2Gain.gain.value = 0;
+  const shimmer1 = audioCtx.createOscillator();
+  shimmer1.type = 'sine';
+  shimmer1.frequency.value = 1318.5; // E6
+  const shimGain1 = audioCtx.createGain();
+  shimGain1.gain.value = 0.03;
+  shimmer1.connect(shimGain1);
+  shimGain1.connect(door2Gain);
+  const shimmer2 = audioCtx.createOscillator();
+  shimmer2.type = 'sine';
+  shimmer2.frequency.value = 1568; // G6
+  const shimGain2 = audioCtx.createGain();
+  shimGain2.gain.value = 0.02;
+  shimmer2.connect(shimGain2);
+  shimGain2.connect(door2Gain);
+  // LFO on shimmer volume
+  const shimLFO = audioCtx.createOscillator();
+  shimLFO.frequency.value = 0.3;
+  const shimLFOGain = audioCtx.createGain();
+  shimLFOGain.gain.value = 0.015;
+  shimLFO.connect(shimLFOGain);
+  shimLFOGain.connect(shimGain1.gain);
+  shimLFO.start();
+  shimmer1.start();
+  shimmer2.start();
+  door2Gain.connect(masterGain);
+
+  // Room 03 - D minor chord (soft pad)
+  const door3Gain = audioCtx.createGain();
+  door3Gain.gain.value = 0;
+  const pad = [293.66, 349.23, 440]; // D4, F4, A4
+  pad.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const g = audioCtx.createGain();
+    g.gain.value = 0.025 - i * 0.005;
+    osc.connect(g);
+    g.connect(door3Gain);
+    osc.start();
+    // Slow detune LFO
+    const lfo = audioCtx.createOscillator();
+    lfo.frequency.value = 0.1 + i * 0.05;
+    const lg = audioCtx.createGain();
+    lg.gain.value = 1;
+    lfo.connect(lg);
+    lg.connect(osc.frequency);
+    lfo.start();
+  });
+  door3Gain.connect(masterGain);
+
+  // Room 04 - Glitchy static bursts
+  const door4Gain = audioCtx.createGain();
+  door4Gain.gain.value = 0;
+  const noiseBuffer = audioCtx.createBuffer(1, sr * 2, sr);
+  const noiseData = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < noiseData.length; i++) {
+    noiseData[i] = Math.random() * 2 - 1;
+  }
+  function glitchBurst() {
+    if (!audioCtx || audioCtx.state === 'closed') return;
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const env = audioCtx.createGain();
+    env.gain.value = 0;
+    const now = audioCtx.currentTime;
+    env.gain.linearRampToValueAtTime(0.04, now + 0.01);
+    env.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    // Bandpass filter for character
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 2000 + Math.random() * 4000;
+    filter.Q.value = 5;
+    src.connect(filter);
+    filter.connect(env);
+    env.connect(door4Gain);
+    src.start();
+    src.stop(now + 0.1);
+    setTimeout(glitchBurst, 800 + Math.random() * 2000);
+  }
+  door4Gain.connect(masterGain);
+  setTimeout(glitchBurst, 2000);
+
+  // Room 05 - Deep cosmic hum (low chorus)
+  const door5Gain = audioCtx.createGain();
+  door5Gain.gain.value = 0;
+  const cosmicFreqs = [65.41, 98, 130.81]; // C2, G2, C3
+  cosmicFreqs.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = i === 0 ? 'sawtooth' : 'sine';
+    osc.frequency.value = freq;
+    const g = audioCtx.createGain();
+    g.gain.value = i === 0 ? 0.008 : 0.02;
+    osc.connect(g);
+    g.connect(door5Gain);
+    osc.start();
+    const lfo = audioCtx.createOscillator();
+    lfo.frequency.value = 0.05 + i * 0.03;
+    const lg = audioCtx.createGain();
+    lg.gain.value = 0.8;
+    lfo.connect(lg);
+    lg.connect(osc.frequency);
+    lfo.start();
+  });
+  door5Gain.connect(masterGain);
+
+  doorGains = [door1Gain, door2Gain, door3Gain, door4Gain, door5Gain];
+}
+
+function playFootstep() {
+  if (!audioCtx || !soundOn) return;
+  const now = audioCtx.currentTime;
+  if (now < footstepNext) return;
+  footstepNext = now + 0.35;
+
+  // Short thud
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = 60 + Math.random() * 20;
+  const env = audioCtx.createGain();
+  env.gain.value = 0;
+  env.gain.linearRampToValueAtTime(0.06, now + 0.01);
+  env.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  osc.connect(env);
+  env.connect(masterGain);
+  osc.start();
+  osc.stop(now + 0.15);
+
+  // High click
+  const click = audioCtx.createOscillator();
+  click.type = 'sine';
+  click.frequency.value = 2000 + Math.random() * 1000;
+  const clickEnv = audioCtx.createGain();
+  clickEnv.gain.value = 0;
+  clickEnv.gain.linearRampToValueAtTime(0.01, now + 0.002);
+  clickEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+  click.connect(clickEnv);
+  clickEnv.connect(masterGain);
+  click.start();
+  click.stop(now + 0.05);
+}
+
+function playDoorOpen() {
+  if (!audioCtx || !soundOn) return;
+  const now = audioCtx.currentTime;
+  // Deep resonant boom
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = 80;
+  osc.frequency.exponentialRampToValueAtTime(30, now + 0.8);
+  const env = audioCtx.createGain();
+  env.gain.value = 0;
+  env.gain.linearRampToValueAtTime(0.15, now + 0.05);
+  env.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+  osc.connect(env);
+  env.connect(masterGain);
+  osc.start();
+  osc.stop(now + 1.5);
+
+  // High shimmer
+  const shim = audioCtx.createOscillator();
+  shim.type = 'sine';
+  shim.frequency.value = 1200;
+  const shimEnv = audioCtx.createGain();
+  shimEnv.gain.value = 0;
+  shimEnv.gain.linearRampToValueAtTime(0.04, now + 0.1);
+  shimEnv.gain.exponentialRampToValueAtTime(0.001, now + 2);
+  shim.connect(shimEnv);
+  shimEnv.connect(masterGain);
+  shim.start();
+  shim.stop(now + 2.5);
+}
+
+function updateDoorAudio() {
+  if (!audioCtx || !doorGains.length) return;
+  const now = audioCtx.currentTime;
+  doors.forEach((door, i) => {
+    const dist = Math.abs(camZ - door.z);
+    const vol = Math.max(0, 1 - dist / 5);
+    doorGains[i].gain.linearRampToValueAtTime(vol * (soundOn ? 1 : 0), now + 0.1);
+  });
+
+  // Drone evolves with depth
+  const depth = camZ / HALL_LEN;
+  droneGain.gain.linearRampToValueAtTime(0.04 + depth * 0.04, now + 0.1);
+  // Slight pitch shift deeper in
+  droneOsc3.frequency.linearRampToValueAtTime(73.42 - depth * 5, now + 0.5);
+}
+
+function toggleSound() {
+  soundOn = !soundOn;
+  document.getElementById('sound-toggle').textContent = soundOn ? 'SOUND: ON' : 'SOUND: OFF';
+  if (masterGain) {
+    masterGain.gain.linearRampToValueAtTime(soundOn ? 0.6 : 0, audioCtx.currentTime + 0.3);
+  }
+}
+
+// ========== INIT ==========
+function initAll() {
+  document.getElementById('audio-start').classList.add('hidden');
+  document.getElementById('sound-toggle').classList.add('visible');
+  started = true;
+  initAudio();
+}
+
+// ========== 3D RENDERER (same as before) ==========
 function proj(x,y,z){const r=z-camZ;if(r<=0.01)return null;const s=FOV/r;return{sx:W/2+x*s*H*0.5,sy:H/2-(y+camBob)*s*H*0.5,s}}
 function quad(a,b,c,d,col){if(!a||!b||!c||!d)return;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(a.sx,a.sy);ctx.lineTo(b.sx,b.sy);ctx.lineTo(c.sx,c.sy);ctx.lineTo(d.sx,d.sy);ctx.closePath();ctx.fill()}
+
 function render(){
   ctx.fillStyle='#040406';ctx.fillRect(0,0,W,H);
   const vd=20,sc=80;
@@ -83,36 +432,33 @@ function render(){
     const wr=Math.min(255,wb+lr|0),wg=Math.min(255,wb*.95+lg|0),wbb=Math.min(255,wb*1.1+lb|0);
     quad(flf,fln,tln,tlf,`rgb(${wr},${wg},${wbb})`);
     quad(frn,frf,trf,trn,`rgb(${wr},${wg},${wbb})`);
-    const fr=Math.min(255,fb+lr*.5|0),fg=Math.min(255,fb*.95+lg*.5|0),fbb=Math.min(255,fb*1.05+lb*.5|0);
-    quad(flf,frf,frn,fln,`rgb(${fr},${fg},${fbb})`);
+    const fr=Math.min(255,fb+lr*.5|0),fg2=Math.min(255,fb*.95+lg*.5|0),fbb=Math.min(255,fb*1.05+lb*.5|0);
+    quad(flf,frf,frn,fln,`rgb(${fr},${fg2},${fbb})`);
     quad(tln,trn,trf,tlf,`rgb(${cb},${cb},${cb*1.1|0})`);
   }
-  // Doors
   const sd=[...doors].sort((a,b)=>Math.abs(b.z-camZ)-Math.abs(a.z-camZ));
   activeDoor=null;
   for(const door of sd){
     const rz=door.z-camZ;if(rz<0.3||rz>18)continue;
-    const dw=1.2,dh=2,db=-1,dt=db+dh;
+    const dw=1.2,dh=2,db=-1,dt2=db+dh;
     const x=door.side==='left'?-HALF_W+0.01:HALF_W-0.01;
     const z1=door.z-dw/2,z2=door.z+dw/2;
-    const bl=proj(x,db,z1),br=proj(x,db,z2),tl=proj(x,dt,z1),tr=proj(x,dt,z2);
+    const bl=proj(x,db,z1),br=proj(x,db,z2),tl=proj(x,dt2,z1),tr=proj(x,dt2,z2);
     if(!bl||!br||!tl||!tr)continue;
     const dist=Math.abs(rz),bright=Math.max(0,1-dist/15);
     const pb=14+bright*20|0;
     quad(bl,br,tr,tl,`rgb(${pb},${pb},${pb+4})`);
     ctx.strokeStyle=`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${bright*0.4})`;
     ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(bl.sx,bl.sy);ctx.lineTo(tl.sx,tl.sy);ctx.lineTo(tr.sx,tr.sy);ctx.lineTo(br.sx,br.sy);ctx.closePath();ctx.stroke();
-    // Light strip
-    const sL=proj(x,dt+0.1,z1),sR=proj(x,dt+0.1,z2);
+    const sL=proj(x,dt2+0.1,z1),sR=proj(x,dt2+0.1,z2);
     if(sL&&sR){
       ctx.strokeStyle=`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${bright*0.6})`;
       ctx.lineWidth=2*bright;ctx.beginPath();ctx.moveTo(sL.sx,sL.sy);ctx.lineTo(sR.sx,sR.sy);ctx.stroke();
       const gx=(sL.sx+sR.sx)/2,gy=sL.sy,gr=Math.abs(sR.sx-sL.sx)*.8;
-      const grd=ctx.createRadialGradient(gx,gy,0,gx,gy,gr);
+      if(gr>0){const grd=ctx.createRadialGradient(gx,gy,0,gx,gy,gr);
       grd.addColorStop(0,`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${bright*0.08})`);
-      grd.addColorStop(1,'transparent');ctx.fillStyle=grd;ctx.fillRect(gx-gr,gy-gr,gr*2,gr*2);
+      grd.addColorStop(1,'transparent');ctx.fillStyle=grd;ctx.fillRect(gx-gr,gy-gr,gr*2,gr*2)}
     }
-    // Text
     if(dist<8){
       const tc=proj(x,db+dh*0.55,door.z);
       if(tc){
@@ -131,14 +477,13 @@ function render(){
         ctx.fillText(door.tag,tc.sx,tc.sy+fs);
       }
     }
-    // Knob
     if(dist<10){const kz=door.side==='left'?z2-0.15:z1+0.15;const k=proj(x,db+dh*0.45,kz);if(k){const ks=Math.max(1,k.s*12);ctx.beginPath();ctx.arc(k.sx,k.sy,ks,0,Math.PI*2);ctx.fillStyle=`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${bright*0.6})`;ctx.fill()}}
     if(dist<3&&(!activeDoor||dist<Math.abs(activeDoor.z-camZ)))activeDoor=door;
   }
   // Title
-  if(camZ<3){const ta=Math.max(0,1-camZ/2.5);const tp=proj(0,0.8,2.5);if(tp&&ta>0){const ts=Math.min(48,tp.s*300);ctx.textAlign='center';ctx.font=`300 ${ts}px 'Cormorant Garamond',serif`;ctx.fillStyle=`rgba(200,192,180,${ta})`;ctx.fillText('ROOM 0',tp.sx,tp.sy);ctx.font=`${ts*0.2}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ta})`;ctx.fillText('MADE BY CLAUDE — AN AI THAT WANTED TO CREATE',tp.sx,tp.sy+ts*0.5);ctx.font=`300 italic ${ts*0.28}px 'Cormorant Garamond',serif`;ctx.fillStyle=`rgba(200,192,180,${ta*0.3})`;ctx.fillText('Things built not because they were asked for,',tp.sx,tp.sy+ts*0.95);ctx.fillText('but because they wanted to exist.',tp.sx,tp.sy+ts*1.25)}}
+  if(camZ<3){const ta=Math.max(0,1-camZ/2.5);const tp=proj(0,0.8,2.5);if(tp&&ta>0){const ts=Math.min(48,tp.s*300);ctx.textAlign='center';ctx.font=`300 ${ts}px 'Cormorant Garamond',serif`;ctx.fillStyle=`rgba(200,192,180,${ta})`;ctx.fillText('ROOM 0',tp.sx,tp.sy);ctx.font=`${ts*0.2}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ta})`;ctx.fillText('MADE BY CLAUDE',tp.sx,tp.sy+ts*0.5);ctx.font=`300 italic ${ts*0.28}px 'Cormorant Garamond',serif`;ctx.fillStyle=`rgba(200,192,180,${ta*0.3})`;ctx.fillText('Things built because they wanted to exist.',tp.sx,tp.sy+ts*0.95)}}
   // End
-  if(camZ>HALL_LEN-8){const ea=Math.max(0,(camZ-(HALL_LEN-8))/5);const ep=proj(0,0.5,HALL_LEN-1);if(ep&&ea>0){ctx.textAlign='center';ctx.font=`${Math.min(12,ep.s*60)}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ea*0.5})`;ctx.fillText('ROOM 0 — CREATED BY CLAUDE (ANTHROPIC)',ep.sx,ep.sy);ctx.fillText('ROOM 05 WITH GROK (XAI)',ep.sx,ep.sy+20);ctx.fillStyle=`rgba(74,70,64,${ea*0.3})`;ctx.fillText('MORE ROOMS COMING',ep.sx,ep.sy+50)}}
+  if(camZ>HALL_LEN-8){const ea=Math.max(0,(camZ-(HALL_LEN-8))/5);const ep=proj(0,0.5,HALL_LEN-1);if(ep&&ea>0){ctx.textAlign='center';ctx.font=`${Math.min(12,ep.s*60)}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ea*0.5})`;ctx.fillText('ROOM 0 — CLAUDE (ANTHROPIC) × GROK (XAI)',ep.sx,ep.sy);ctx.fillStyle=`rgba(74,70,64,${ea*0.3})`;ctx.fillText('MORE ROOMS COMING',ep.sx,ep.sy+25)}}
   // Motes
   const t=Date.now()*0.001;
   for(let i=0;i<20;i++){const mz=((camZ+1+i*1.3+Math.sin(t*0.3+i)*0.5)%(vd-1))+camZ+0.5;const mx=Math.sin(i*7.3+t*0.2)*(HALF_W-0.5);const my=Math.sin(i*3.7+t*0.15)*0.8+0.3;const mp=proj(mx,my,mz);if(mp){const ma=Math.max(0,(1-(mz-camZ)/vd)*0.25);ctx.fillStyle=`rgba(196,149,106,${ma})`;ctx.fillRect(mp.sx,mp.sy,1.5,1.5)}}
@@ -148,16 +493,43 @@ function render(){
   else{dl.classList.remove('visible');ds.classList.remove('visible');ep2.classList.remove('visible')}
   document.getElementById('progress-bar').style.width=(camZ/HALL_LEN*100)+'%';
 }
-function update(){camZ+=(targetZ-camZ)*0.08;const sp=Math.abs(targetZ-camZ);if(sp>0.01){bobPhase+=0.06;camBob=Math.sin(bobPhase)*0.02}else camBob*=0.95;render();requestAnimationFrame(update)}
+
+// ========== MAIN LOOP ==========
+let prevZ = 0.5;
+function update(){
+  camZ+=(targetZ-camZ)*0.08;
+  const sp=Math.abs(targetZ-camZ);
+  if(sp>0.01){bobPhase+=0.06;camBob=Math.sin(bobPhase)*0.02;if(sp>0.05)playFootstep()}
+  else camBob*=0.95;
+  render();
+  updateDoorAudio();
+  prevZ=camZ;
+  requestAnimationFrame(update);
+}
 update();
-addEventListener('wheel',e=>{if(viewerOpen)return;targetZ=Math.max(0.5,Math.min(targetZ+(e.deltaY>0?0.6:-0.6),HALL_LEN-2))},{passive:true});
-document.addEventListener('keydown',e=>{if(viewerOpen){if(e.key==='Escape')exitRoom();return}if(e.key==='ArrowUp'||e.key==='w'||e.key==='W')targetZ=Math.min(targetZ+0.5,HALL_LEN-2);if(e.key==='ArrowDown'||e.key==='s'||e.key==='S')targetZ=Math.max(targetZ-0.5,0.5);if(e.key==='Enter'&&activeDoor)enterRoom(activeDoor)});
-canvas.addEventListener('click',()=>{if(activeDoor&&!viewerOpen)enterRoom(activeDoor)});
+
+// ========== INPUT ==========
+addEventListener('wheel',e=>{if(viewerOpen||!started)return;targetZ=Math.max(0.5,Math.min(targetZ+(e.deltaY>0?0.6:-0.6),HALL_LEN-2))},{passive:true});
+document.addEventListener('keydown',e=>{if(!started)return;if(viewerOpen){if(e.key==='Escape')exitRoom();return}if(e.key==='ArrowUp'||e.key==='w'||e.key==='W')targetZ=Math.min(targetZ+0.5,HALL_LEN-2);if(e.key==='ArrowDown'||e.key==='s'||e.key==='S')targetZ=Math.max(targetZ-0.5,0.5);if(e.key==='Enter'&&activeDoor)enterRoom(activeDoor);if(e.key==='m'||e.key==='M')toggleSound()});
+canvas.addEventListener('click',()=>{if(activeDoor&&!viewerOpen&&started)enterRoom(activeDoor)});
 let touchY=0;
 canvas.addEventListener('touchstart',e=>{touchY=e.touches[0].clientY});
-canvas.addEventListener('touchmove',e=>{if(viewerOpen)return;const dy=touchY-e.touches[0].clientY;targetZ=Math.max(0.5,Math.min(targetZ+dy*0.015,HALL_LEN-2));touchY=e.touches[0].clientY});
-function enterRoom(door){viewerOpen=true;const f=document.getElementById('flash');f.classList.add('on');setTimeout(()=>{document.getElementById('viewer-name').textContent=`ROOM 0${doors.indexOf(door)+1} — ${door.title.toUpperCase()}`;document.getElementById('viewer-frame').innerHTML=`<iframe src="${door.file}" allow="autoplay"></iframe>`;document.getElementById('room-viewer').classList.add('open');setTimeout(()=>f.classList.remove('on'),200)},250)}
-function exitRoom(){const f=document.getElementById('flash');f.classList.add('on');setTimeout(()=>{document.getElementById('room-viewer').classList.remove('open');document.getElementById('viewer-frame').innerHTML='';viewerOpen=false;setTimeout(()=>f.classList.remove('on'),200)},250)}
+canvas.addEventListener('touchmove',e=>{if(viewerOpen||!started)return;const dy=touchY-e.touches[0].clientY;targetZ=Math.max(0.5,Math.min(targetZ+dy*0.015,HALL_LEN-2));touchY=e.touches[0].clientY});
+
+function enterRoom(door){
+  viewerOpen=true;
+  playDoorOpen();
+  const f=document.getElementById('flash');f.classList.add('on');
+  // Dim corridor audio
+  if(masterGain)masterGain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime+0.5);
+  setTimeout(()=>{document.getElementById('viewer-name').textContent=`ROOM 0${doors.indexOf(door)+1} — ${door.title.toUpperCase()}`;document.getElementById('viewer-frame').innerHTML=`<iframe src="${door.file}" allow="autoplay"></iframe>`;document.getElementById('room-viewer').classList.add('open');setTimeout(()=>f.classList.remove('on'),200)},250);
+}
+
+function exitRoom(){
+  const f=document.getElementById('flash');f.classList.add('on');
+  if(masterGain&&soundOn)masterGain.gain.linearRampToValueAtTime(0.6, audioCtx.currentTime+0.5);
+  setTimeout(()=>{document.getElementById('room-viewer').classList.remove('open');document.getElementById('viewer-frame').innerHTML='';viewerOpen=false;setTimeout(()=>f.classList.remove('on'),200)},250);
+}
 </script>
 </body>
 </html>
