@@ -89,6 +89,19 @@
 <div id="key-display">KEY OF D MINOR</div>
 <div id="note-hint">CLICK ANYWHERE</div>
 
+
+<div id="obj-screen" style="position:fixed;inset:0;background:#040408;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1s">
+  <h1 style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:300;letter-spacing:8px;color:rgba(122,196,154,.6);margin-bottom:12px">RESONANCE</h1>
+  <div style="font-family:'Sometype Mono',monospace;font-size:10px;color:#4a4640;letter-spacing:3px;margin-bottom:30px">AMBIENT SOUND</div>
+  <div style="font-family:'Cormorant Garamond',serif;font-size:17px;color:#c8c0b4;line-height:2;text-align:center;max-width:400px;margin-bottom:10px;font-weight:300">
+    An instrument that plays itself in D minor.<br>Click to drop notes. Hover to bend frequencies.<br>Sound as a space to inhabit.
+  </div>
+  <div style="font-family:'Sometype Mono',monospace;font-size:10px;color:#2a2a30;letter-spacing:1px;line-height:2.5;text-align:center;margin-bottom:30px">
+    CLICK ANYWHERE — drop a note<br>MOVE MOUSE — bend the wave field<br>KEYS A-S-D-F-G-H-J-K-L — play notes<br>♪ SOUND REQUIRED
+  </div>
+  <button onclick="document.getElementById('obj-screen').style.opacity='0';document.getElementById('obj-screen').style.pointerEvents='none'" style="font-family:'Cormorant Garamond',serif;font-size:15px;color:#7ac49a;border:1px solid #7ac49a;background:none;padding:12px 36px;cursor:pointer;letter-spacing:3px;transition:all .4s">BEGIN</button>
+</div>
+
 <canvas id="field"></canvas>
 
 <script>
@@ -482,6 +495,31 @@
       nodes.push(new Node(x, y, freq, '#7ac49a'));
     }
   }, 4000);
+  // Stats tracking
+  let notesPlayed = 0;
+  const _origPlayNote = typeof playNote === 'function' ? playNote : null;
+  const sessionStart = Date.now();
+  setInterval(() => {
+    const s = {room:'room3', name:'Resonance', notes:notesPlayed, time:Math.round((Date.now()-sessionStart)/1000), date:Date.now()};
+    const all = JSON.parse(localStorage.getItem('room0_stats')||'[]');
+    if (!window._resSaved) { all.push(s); localStorage.setItem('room0_stats', JSON.stringify(all)); window._resSaved = true; }
+  }, 60000);
+  // Track note count
+  const origClick = canvas.onclick;
+  canvas.addEventListener('click', () => { notesPlayed++; }, true);
+  document.addEventListener('keydown', () => { notesPlayed++; }, true);
+
+  // Help overlay
+  const helpBtn = document.createElement('button');
+  helpBtn.id = 'res-help';
+  helpBtn.textContent = '? HELP';
+  helpBtn.style.cssText = 'position:fixed;top:16px;left:16px;z-index:300;font-family:"Sometype Mono",monospace;font-size:10px;color:#4a4640;letter-spacing:1px;background:none;border:1px solid #1e1e24;padding:6px 12px;cursor:pointer;transition:all .3s';
+  document.body.appendChild(helpBtn);
+  const helpOv = document.createElement('div');
+  helpOv.style.cssText = 'position:fixed;inset:0;background:rgba(4,4,8,.92);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s';
+  helpOv.innerHTML = '<div style="max-width:400px;text-align:center;padding:40px"><h2 style="font-family:Cormorant Garamond,serif;font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:#7ac49a">HOW TO PLAY</h2><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">CLICK — drop a note into the void</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">MOVE MOUSE — bend wave frequencies nearby</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">KEYS A-S-D-F-G-H-J-K-L — play D minor scale</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">Just listen. There is no wrong way to play.</div><button onclick="this.parentElement.parentElement.style.opacity=0;this.parentElement.parentElement.style.pointerEvents=\'none\'" style="font-family:Cormorant Garamond,serif;font-size:14px;color:#7ac49a;background:none;border:1px solid #7ac49a;padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s">GOT IT</button></div>';
+  document.body.appendChild(helpOv);
+  helpBtn.onclick = () => { helpOv.style.opacity = helpOv.style.opacity === '1' ? '0' : '1'; helpOv.style.pointerEvents = helpOv.style.pointerEvents === 'auto' ? 'none' : 'auto'; };
 </script>
 </body>
 </html>

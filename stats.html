@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Room 0 — Your Stats</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Sometype+Mono:wght@400;500&display=swap');
+  :root{--void:#040406;--surface:#0a0a0e;--amber:#c4956a;--cyan:#00e5ff;--blue:#6a8fc4;--rose:#c47a7a;--sage:#7ac49a;--text:#c8c0b4;--dim:#4a4640;--faint:#1e1e24}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--void);color:var(--text);font-family:'Cormorant Garamond',serif;min-height:100vh;padding:40px 20px}
+  #grain{position:fixed;inset:0;pointer-events:none;z-index:10000;opacity:0.025;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .container{max-width:700px;margin:0 auto}
+  h1{font-size:36px;font-weight:300;letter-spacing:10px;text-align:center;margin-bottom:8px}
+  .subtitle{font-family:'Sometype Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:3px;text-align:center;margin-bottom:50px}
+  .back-link{display:block;text-align:center;margin-bottom:40px}
+  .back-link a{font-family:'Sometype Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:2px;text-decoration:none;border:1px solid var(--faint);padding:6px 14px;transition:all .3s}
+  .back-link a:hover{border-color:var(--amber);color:var(--amber)}
+  .section{margin-bottom:50px}
+  .section-title{font-family:'Sometype Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:20px;padding-bottom:8px;border-bottom:1px solid var(--faint)}
+  .stat-card{background:var(--surface);border:1px solid var(--faint);padding:24px;margin-bottom:12px;transition:all .3s}
+  .stat-card:hover{border-color:var(--amber)}
+  .stat-card .room-name{font-size:20px;font-weight:400;letter-spacing:2px;margin-bottom:4px}
+  .stat-card .room-tag{font-family:'Sometype Mono',monospace;font-size:9px;letter-spacing:2px;margin-bottom:14px;display:inline-block;padding:2px 8px;border:1px solid}
+  .stat-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #0e0e12}
+  .stat-row:last-child{border:none}
+  .stat-label{font-family:'Sometype Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:1px}
+  .stat-value{font-family:'Sometype Mono',monospace;font-size:12px;color:var(--text);letter-spacing:1px}
+  .stat-value.highlight{color:var(--amber)}
+  .empty-state{text-align:center;padding:60px 20px;color:var(--dim);font-size:16px;font-style:italic;border:1px solid var(--faint)}
+  .total-box{background:var(--surface);border:1px solid var(--amber);padding:30px;text-align:center;margin-bottom:40px}
+  .total-box .big-number{font-size:48px;font-weight:300;color:var(--amber);letter-spacing:4px}
+  .total-box .big-label{font-family:'Sometype Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:3px;margin-top:4px}
+  .clear-btn{display:block;margin:40px auto 0;font-family:'Sometype Mono',monospace;font-size:9px;color:#2a2a30;letter-spacing:2px;background:none;border:1px solid #1a1a20;padding:8px 20px;cursor:pointer;transition:all .3s}
+  .clear-btn:hover{border-color:var(--rose);color:var(--rose)}
+</style>
+</head>
+<body>
+<div id="grain"></div>
+<div class="container">
+  <h1>YOUR STATS</h1>
+  <div class="subtitle">ROOM 0 — PERSONAL ARCHIVE</div>
+  <div class="back-link"><a href="index.html">← BACK TO CORRIDOR</a></div>
+
+  <div class="total-box">
+    <div class="big-number" id="total-plays">0</div>
+    <div class="big-label">TOTAL SESSIONS PLAYED</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">ROOM STATS</div>
+    <div id="room-stats"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">RECENT ACTIVITY</div>
+    <div id="recent"></div>
+  </div>
+
+  <button class="clear-btn" onclick="if(confirm('Clear all stats? This cannot be undone.')){localStorage.removeItem('room0_stats');localStorage.removeItem('room0_best');location.reload()}">CLEAR ALL STATS</button>
+</div>
+
+<script>
+const allStats = JSON.parse(localStorage.getItem('room0_stats') || '[]');
+const best = JSON.parse(localStorage.getItem('room0_best') || '{}');
+
+document.getElementById('total-plays').textContent = allStats.length;
+
+const roomConfig = {
+  room1: { name: 'The Room Remembers', tag: 'PUZZLE', color: '#c4956a' },
+  room2: { name: 'Constellations of Nothing', tag: 'GEN ART', color: '#6a8fc4' },
+  room3: { name: 'Resonance', tag: 'SOUND', color: '#7ac49a' },
+  room4: { name: 'Breach', tag: 'META', color: '#c47a7a' },
+  room5: { name: 'Infinite Cosmos', tag: 'COLLAB', color: '#00e5ff' },
+};
+
+const container = document.getElementById('room-stats');
+
+if (allStats.length === 0) {
+  container.innerHTML = '<div class="empty-state">No stats yet. Go play some rooms!</div>';
+} else {
+  // Group by room
+  const byRoom = {};
+  allStats.forEach(s => {
+    if (!byRoom[s.room]) byRoom[s.room] = [];
+    byRoom[s.room].push(s);
+  });
+
+  for (const [roomId, cfg] of Object.entries(roomConfig)) {
+    const entries = byRoom[roomId] || [];
+    if (entries.length === 0) continue;
+
+    const card = document.createElement('div');
+    card.className = 'stat-card';
+
+    let statsHTML = `<div class="room-name">${cfg.name}</div>`;
+    statsHTML += `<div class="room-tag" style="color:${cfg.color};border-color:${cfg.color}">${cfg.tag}</div>`;
+
+    statsHTML += `<div class="stat-row"><span class="stat-label">TIMES PLAYED</span><span class="stat-value">${entries.length}</span></div>`;
+
+    if (roomId === 'room1') {
+      const bestEntry = best.room1;
+      if (bestEntry) {
+        statsHTML += `<div class="stat-row"><span class="stat-label">BEST TIME</span><span class="stat-value highlight">${bestEntry.time}s</span></div>`;
+        statsHTML += `<div class="stat-row"><span class="stat-label">FEWEST CLICKS</span><span class="stat-value">${bestEntry.clicks}</span></div>`;
+        statsHTML += `<div class="stat-row"><span class="stat-label">LIES BELIEVED</span><span class="stat-value">${bestEntry.lies}</span></div>`;
+      }
+      const completed = entries.filter(e => e.completed).length;
+      statsHTML += `<div class="stat-row"><span class="stat-label">COMPLETIONS</span><span class="stat-value">${completed}/${entries.length}</span></div>`;
+    }
+
+    if (roomId === 'room5') {
+      const latest = entries[entries.length - 1];
+      if (latest) {
+        statsHTML += `<div class="stat-row"><span class="stat-label">STARS CREATED</span><span class="stat-value highlight">${latest.stars || 0}</span></div>`;
+        statsHTML += `<div class="stat-row"><span class="stat-label">CIVILIZATIONS</span><span class="stat-value">${latest.civs || 0}</span></div>`;
+        statsHTML += `<div class="stat-row"><span class="stat-label">SUPERNOVAE</span><span class="stat-value">${latest.supernovae || 0}</span></div>`;
+        statsHTML += `<div class="stat-row"><span class="stat-label">MISSIONS COMPLETED</span><span class="stat-value">${latest.missions || 0}/5</span></div>`;
+      }
+    }
+
+    if (roomId === 'room2') {
+      const latest = entries[entries.length - 1];
+      if (latest) {
+        statsHTML += `<div class="stat-row"><span class="stat-label">STARS BORN</span><span class="stat-value highlight">${latest.stars || 0}</span></div>`;
+        statsHTML += `<div class="stat-row"><span class="stat-label">UNIVERSE SEED</span><span class="stat-value">#${latest.seed || '???'}</span></div>`;
+      }
+    }
+
+    card.innerHTML = statsHTML;
+    container.appendChild(card);
+  }
+}
+
+// Recent activity
+const recent = document.getElementById('recent');
+if (allStats.length === 0) {
+  recent.innerHTML = '<div class="empty-state">Nothing here yet.</div>';
+} else {
+  const last10 = allStats.slice(-10).reverse();
+  last10.forEach(s => {
+    const cfg = roomConfig[s.room] || { name: s.name || 'Unknown', color: '#4a4640' };
+    const ago = Math.round((Date.now() - s.date) / 60000);
+    let timeStr;
+    if (ago < 1) timeStr = 'just now';
+    else if (ago < 60) timeStr = ago + 'm ago';
+    else if (ago < 1440) timeStr = Math.round(ago / 60) + 'h ago';
+    else timeStr = Math.round(ago / 1440) + 'd ago';
+
+    const row = document.createElement('div');
+    row.className = 'stat-card';
+    row.style.padding = '14px 24px';
+    row.innerHTML = `<div class="stat-row" style="border:none"><span class="stat-label" style="color:${cfg.color}">${cfg.name}</span><span class="stat-value" style="color:var(--dim)">${timeStr}</span></div>`;
+    recent.appendChild(row);
+  });
+}
+</script>
+</body>
+</html>

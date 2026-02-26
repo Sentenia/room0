@@ -59,6 +59,7 @@
 </div>
 
 <button id="sound-toggle" onclick="toggleSound()">SOUND: ON</button>
+<a href="stats.html" id="stats-link" style="position:fixed;top:16px;right:120px;z-index:300;font-family:'Sometype Mono',monospace;font-size:9px;color:var(--dim);letter-spacing:2px;text-decoration:none;border:1px solid var(--faint);padding:6px 12px;transition:all 0.3s;opacity:0">YOUR STATS</a>
 
 <canvas id="hall"></canvas>
 
@@ -410,6 +411,7 @@ function toggleSound() {
 function initAll() {
   document.getElementById('audio-start').classList.add('hidden');
   document.getElementById('sound-toggle').classList.add('visible');
+  document.getElementById('stats-link').style.opacity='1';
   started = true;
   initAudio();
 }

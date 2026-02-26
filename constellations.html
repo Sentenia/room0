@@ -93,6 +93,7 @@
     letter-spacing: 2px;
     z-index: 10;
   }
+#help-ov2.open{opacity:1!important;pointer-events:auto!important}
 </style>
 </head>
 <body>
@@ -103,6 +104,31 @@
 </div>
 
 <div id="seed"></div>
+
+
+<div id="obj-screen" style="position:fixed;inset:0;background:#030306;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1s">
+  <h1 style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:300;letter-spacing:8px;color:#c8c0b4;margin-bottom:12px">CONSTELLATIONS OF NOTHING</h1>
+  <div style="font-family:'Sometype Mono',monospace;font-size:10px;color:#4a4640;letter-spacing:3px;margin-bottom:30px">GENERATIVE ART</div>
+  <div style="font-family:'Cormorant Garamond',serif;font-size:17px;color:#c8c0b4;line-height:2;text-align:center;max-width:400px;margin-bottom:10px;font-weight:300">
+    Create a sky that has never existed.<br>Birth stars, draw gravity, watch constellations form.<br>Every universe is unique.
+  </div>
+  <div style="font-family:'Sometype Mono',monospace;font-size:10px;color:#2a2a30;letter-spacing:1px;line-height:2.5;text-align:center;margin-bottom:30px">
+    CLICK — birth a star<br>DOUBLE-CLICK — birth a cluster<br>MOVE MOUSE — create gravity<br>SHIFT+CLICK — supernova burst
+  </div>
+  <button onclick="document.getElementById('obj-screen').style.opacity='0';document.getElementById('obj-screen').style.pointerEvents='none';document.getElementById('help-btn2').style.opacity='1'" style="font-family:'Cormorant Garamond',serif;font-size:15px;color:#c4956a;border:1px solid #c4956a;background:none;padding:12px 36px;cursor:pointer;letter-spacing:3px;transition:all .4s">BEGIN</button>
+</div>
+<button id="help-btn2" onclick="document.getElementById('help-ov2').classList.toggle('open')" style="position:fixed;top:16px;left:16px;z-index:200;font-family:'Sometype Mono',monospace;font-size:10px;color:#4a4640;letter-spacing:1px;background:none;border:1px solid #1e1e24;padding:6px 12px;cursor:pointer;opacity:0;transition:all .3s">? HELP</button>
+<div id="help-ov2" style="position:fixed;inset:0;background:rgba(3,3,6,.92);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s">
+  <div style="max-width:400px;text-align:center;padding:40px">
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:#c4956a">HOW TO PLAY</h2>
+    <div style="font-family:'Sometype Mono',monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">CLICK — create a new star</div>
+    <div style="font-family:'Sometype Mono',monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">DOUBLE-CLICK — create a star cluster</div>
+    <div style="font-family:'Sometype Mono',monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">MOVE MOUSE — nearby stars are pulled toward your cursor</div>
+    <div style="font-family:'Sometype Mono',monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">Stars form constellations when close together</div>
+    <div style="font-family:'Sometype Mono',monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">Colors shift every 20 stars — watch the palette evolve</div>
+    <button onclick="document.getElementById('help-ov2').classList.remove('open')" style="font-family:'Cormorant Garamond',serif;font-size:14px;color:#c4956a;background:none;border:1px solid #c4956a;padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s">GOT IT</button>
+  </div>
+</div>
 
 <canvas id="sky"></canvas>
 
@@ -455,6 +481,14 @@
       );
     }
   }, 2000);
+
+// Stats
+setInterval(()=>{
+  const s={room:'room2',name:'Constellations',stars:totalBorn,seed:seed,date:Date.now()};
+  const all=JSON.parse(localStorage.getItem('room0_stats')||'[]');
+  // Only save once per session
+  if(!window._saved){all.push(s);localStorage.setItem('room0_stats',JSON.stringify(all));window._saved=true}
+},60000);
 </script>
 </body>
 </html>

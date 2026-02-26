@@ -6,896 +6,182 @@
 <title>Infinite Cosmos — Grok × Claude</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Sometype+Mono:wght@400;500&display=swap');
-
-  :root {
-    --void: #020204;
-    --cyan: #00e5ff;
-    --cyan-dim: rgba(0,229,255,0.08);
-    --amber: #c4956a;
-    --rose: #ff6b8a;
-    --green: #4eff91;
-    --text: #c8c0b4;
-    --dim: #4a4a52;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--void);
-    overflow: hidden;
-    cursor: crosshair;
-    user-select: none;
-    font-family: 'Sometype Mono', monospace;
-  }
-
-  canvas { display: block; }
-
-  /* Narrator */
-  #narrator {
-    position: fixed;
-    top: 16px; left: 16px;
-    max-width: 420px;
-    font-family: 'Sometype Mono', monospace;
-    font-size: 12px;
-    color: var(--cyan);
-    background: rgba(2, 2, 4, 0.85);
-    border: 1px solid rgba(0, 229, 255, 0.15);
-    padding: 12px 16px;
-    line-height: 1.7;
-    letter-spacing: 0.5px;
-    z-index: 100;
-    opacity: 0;
-    transition: opacity 0.6s;
-  }
-  #narrator.visible { opacity: 1; }
-  #narrator .label {
-    color: var(--dim);
-    font-size: 9px;
-    letter-spacing: 2px;
-    margin-bottom: 6px;
-    display: block;
-  }
-
+  :root{--void:#020204;--cyan:#00e5ff;--amber:#c4956a;--rose:#ff6b8a;--green:#4eff91;--text:#c8c0b4;--dim:#4a4a52}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--void);overflow:hidden;cursor:crosshair;user-select:none;font-family:'Sometype Mono',monospace}
+  canvas{display:block}
+  /* Objective screen */
+  #obj-screen{position:fixed;inset:0;background:var(--void);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1s}
+  #obj-screen.hidden{opacity:0;pointer-events:none}
+  #obj-screen h1{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:300;letter-spacing:8px;color:var(--text);margin-bottom:8px}
+  #obj-screen .collab{font-size:10px;color:var(--dim);letter-spacing:3px;margin-bottom:30px}
+  #obj-screen .goal{font-family:'Cormorant Garamond',serif;font-size:17px;color:var(--text);line-height:2;text-align:center;max-width:420px;margin-bottom:10px;font-weight:300}
+  #obj-screen .rules{font-size:10px;color:#2a2a30;letter-spacing:1px;line-height:2.5;text-align:center;margin-bottom:30px}
+  #obj-screen button{font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--cyan);border:1px solid var(--cyan);background:none;padding:12px 36px;cursor:pointer;letter-spacing:3px;transition:all .4s}
+  #obj-screen button:hover{background:var(--cyan);color:var(--void)}
+  /* Tutorial popups */
+  #tutorial{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(2,2,4,.92);border:1px solid rgba(0,229,255,.15);padding:24px 32px;max-width:360px;text-align:center;z-index:800;opacity:0;pointer-events:none;transition:opacity .5s}
+  #tutorial.visible{opacity:1;pointer-events:auto}
+  #tutorial .tut-text{font-size:12px;color:var(--cyan);letter-spacing:.5px;line-height:2;margin-bottom:16px}
+  #tutorial button{font-size:10px;color:var(--cyan);border:1px solid rgba(0,229,255,.3);background:none;padding:6px 20px;cursor:pointer;letter-spacing:2px;transition:all .3s}
+  #tutorial button:hover{border-color:var(--cyan)}
   /* HUD */
-  #hud {
-    position: fixed;
-    bottom: 16px; left: 16px;
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 1px;
-    z-index: 100;
-    line-height: 2;
-  }
-
-  #stats {
-    position: fixed;
-    top: 16px; right: 16px;
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 1px;
-    z-index: 100;
-    text-align: right;
-    line-height: 2;
-  }
-
-  /* Powers HUD */
-  #powers {
-    position: fixed;
-    bottom: 16px; right: 16px;
-    display: flex; gap: 8px;
-    z-index: 100;
-  }
-
-  .power-btn {
-    width: 44px; height: 44px;
-    border: 1px solid var(--dim);
-    background: rgba(2,2,4,0.8);
-    display: flex; align-items: center; justify-content: center;
-    flex-direction: column;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.3s;
-    position: relative;
-  }
-
-  .power-btn:hover { border-color: var(--cyan); }
-  .power-btn.active { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-dim); }
-
-  .power-btn .key {
-    font-size: 8px;
-    color: var(--dim);
-    margin-top: 2px;
-    letter-spacing: 1px;
-  }
-
-  /* Civ messages */
-  .civ-msg {
-    position: fixed;
-    font-family: 'Sometype Mono', monospace;
-    font-size: 10px;
-    color: var(--green);
-    background: rgba(2,2,4,0.8);
-    border: 1px solid rgba(78,255,145,0.2);
-    padding: 6px 10px;
-    z-index: 90;
-    opacity: 0;
-    transition: opacity 0.5s, transform 0.5s;
-    pointer-events: none;
-    letter-spacing: 0.5px;
-  }
-  .civ-msg.visible { opacity: 1; transform: translateY(-10px); }
-
-  /* Title overlay */
-  #title-overlay {
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    z-index: 200;
-    pointer-events: none;
-    animation: title-fade 6s ease forwards;
-  }
-
-  #title-overlay h1 {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 38px;
-    font-weight: 300;
-    letter-spacing: 8px;
-    color: var(--text);
-    margin-bottom: 10px;
-  }
-
-  #title-overlay .collab {
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 3px;
-  }
-
-  #title-overlay .instruct {
-    font-size: 10px;
-    color: rgba(0,229,255,0.3);
-    letter-spacing: 2px;
-    margin-top: 20px;
-  }
-
-  @keyframes title-fade {
-    0% { opacity: 0; }
-    15% { opacity: 1; }
-    75% { opacity: 1; }
-    100% { opacity: 0; pointer-events: none; }
-  }
-
-  /* Seed */
-  #seed-display {
-    position: fixed;
-    top: 50%; right: 16px;
-    transform: translateY(-50%) rotate(90deg);
-    transform-origin: right center;
-    font-size: 9px;
-    color: #1a1a20;
-    letter-spacing: 3px;
-    z-index: 50;
-  }
+  #narrator{position:fixed;top:16px;left:16px;max-width:400px;font-size:12px;color:var(--cyan);background:rgba(2,2,4,.85);border:1px solid rgba(0,229,255,.15);padding:12px 16px;line-height:1.7;letter-spacing:.5px;z-index:100;opacity:0;transition:opacity .6s}
+  #narrator.visible{opacity:1}
+  #narrator .label{color:var(--dim);font-size:9px;letter-spacing:2px;margin-bottom:6px;display:block}
+  #stats{position:fixed;top:16px;right:16px;font-size:10px;color:var(--dim);letter-spacing:1px;z-index:100;text-align:right;line-height:2}
+  /* Missions */
+  #missions{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100;text-align:center}
+  #mission-label{font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:4px}
+  #mission-text{font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--cyan);letter-spacing:1px}
+  #mission-progress{font-size:9px;color:rgba(0,229,255,.4);letter-spacing:1px;margin-top:4px}
+  /* Achievement popup */
+  .achievement{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(2,2,4,.9);border:1px solid var(--green);padding:10px 24px;z-index:600;opacity:0;transition:all .6s;font-size:11px;color:var(--green);letter-spacing:2px;text-align:center}
+  .achievement.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* Powers */
+  #powers{position:fixed;bottom:16px;right:16px;display:flex;gap:8px;z-index:100}
+  .pow{width:44px;height:44px;border:1px solid var(--dim);background:rgba(2,2,4,.8);display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:16px;cursor:pointer;transition:all .3s;position:relative;opacity:.3;pointer-events:none}
+  .pow.unlocked{opacity:1;pointer-events:auto}
+  .pow:hover{border-color:var(--cyan)}
+  .pow.active{border-color:var(--cyan);box-shadow:0 0 12px rgba(0,229,255,.12)}
+  .pow .key{font-size:8px;color:var(--dim);margin-top:2px;letter-spacing:1px}
+  #hud-bottom{position:fixed;bottom:16px;left:16px;font-size:10px;color:#2a2a30;letter-spacing:1px;z-index:100;line-height:2}
+  /* Help */
+  #help-btn{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--dim);letter-spacing:2px;background:none;border:1px solid #1e1e24;padding:6px 16px;cursor:pointer;z-index:100;transition:all .3s}
+  #help-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+  #help-overlay{position:fixed;inset:0;background:rgba(2,2,4,.94);z-index:900;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s}
+  #help-overlay.open{opacity:1;pointer-events:auto}
+  #help-box{max-width:440px;text-align:center;padding:40px}
+  #help-box h2{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:var(--cyan)}
+  #help-box .mech{font-size:11px;color:var(--text);letter-spacing:1px;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8}
+  #help-box button{font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--cyan);background:none;border:1px solid var(--cyan);padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s}
+  #help-box button:hover{background:var(--cyan);color:var(--void)}
+  #seed-display{position:fixed;top:50%;right:16px;transform:translateY(-50%) rotate(90deg);transform-origin:right center;font-size:9px;color:#1a1a20;letter-spacing:3px;z-index:50}
 </style>
 </head>
 <body>
-
-<div id="title-overlay">
+<div id="obj-screen">
   <h1>INFINITE COSMOS</h1>
   <div class="collab">GROK'S VISION × CLAUDE'S CRAFT</div>
-  <div class="instruct">DRAG TO CREATE — SCROLL TO ZOOM — SPACE FOR GLITCH</div>
+  <div class="goal">
+    You are a Cosmic Architect. Sculpt matter, birth stars,<br>
+    and nurture civilizations into existence.<br>
+    Complete missions to unlock god powers.
+  </div>
+  <div class="rules">
+    DRAG TO CREATE MATTER · SCROLL TO ZOOM<br>
+    RIGHT-DRAG TO PAN · MATTER CLUSTERS INTO STARS<br>
+    STARS CAN BIRTH CIVILIZATIONS<br>
+    COMPLETE MISSIONS TO UNLOCK POWERS
+  </div>
+  <button onclick="startGame()">CREATE A UNIVERSE</button>
 </div>
-
+<div id="tutorial"><div class="tut-text" id="tut-text"></div><button onclick="closeTutorial()">OK</button></div>
 <canvas id="cosmos"></canvas>
-
-<div id="narrator">
-  <span class="label">GROK //</span>
-  <span id="nar-text">Welcome, Architect. The void is yours.</span>
-</div>
-
-<div id="hud">
-  DRAG: CREATE MATTER &nbsp;|&nbsp; SCROLL: ZOOM &nbsp;|&nbsp; RIGHT-DRAG: PAN<br>
-  1: TIME WARP &nbsp;|&nbsp; 2: PROBABILITY HACK &nbsp;|&nbsp; 3: BIG GLITCH
-</div>
-
-<div id="stats">
-  PARTICLES: <span id="s-particles">0</span><br>
-  STARS: <span id="s-stars">0</span><br>
-  CIVILIZATIONS: <span id="s-civs">0</span><br>
-  EPOCH: <span id="s-epoch">0</span>
-</div>
-
+<div id="narrator"><span class="label">GROK //</span><span id="nar-text">Welcome, Architect.</span></div>
+<div id="stats">PARTICLES: <span id="s-p">0</span><br>STARS: <span id="s-s">0</span><br>CIVS: <span id="s-c">0</span><br>EPOCH: <span id="s-e">0</span></div>
+<div id="missions"><div id="mission-label">CURRENT MISSION</div><div id="mission-text"></div><div id="mission-progress"></div></div>
 <div id="powers">
-  <div class="power-btn" id="pow1" onclick="activatePower(1)">⏳<span class="key">1</span></div>
-  <div class="power-btn" id="pow2" onclick="activatePower(2)">🎲<span class="key">2</span></div>
-  <div class="power-btn" id="pow3" onclick="activatePower(3)">💥<span class="key">3</span></div>
+  <div class="pow" id="pow1" onclick="activatePower(1)">⏳<span class="key">1</span></div>
+  <div class="pow" id="pow2" onclick="activatePower(2)">🎲<span class="key">2</span></div>
+  <div class="pow" id="pow3" onclick="activatePower(3)">💥<span class="key">3</span></div>
 </div>
-
+<div id="hud-bottom">DRAG: CREATE · SCROLL: ZOOM<br>RIGHT-DRAG: PAN · M: MISSIONS</div>
+<button id="help-btn" onclick="toggleHelp()">? HELP</button>
+<div id="help-overlay"><div id="help-box">
+  <h2>HOW TO PLAY</h2>
+  <div class="mech">🖱️ DRAG — paint matter into the void</div>
+  <div class="mech">⭐ MATTER CLUSTERS — when enough gathers, a star is born</div>
+  <div class="mech">💥 BIG STARS EXPLODE — supernovae scatter matter to form new stars</div>
+  <div class="mech">🌍 CIVILIZATIONS EMERGE — on stable planets around medium stars</div>
+  <div class="mech">📜 SCROLL — zoom in and out</div>
+  <div class="mech">🖱️ RIGHT-DRAG — pan the camera</div>
+  <div class="mech">⏳ POWER 1 — Time Warp: slow local physics</div>
+  <div class="mech">🎲 POWER 2 — Probability Hack: inject chaos</div>
+  <div class="mech">💥 POWER 3 — Big Glitch: explosive shockwave</div>
+  <div class="mech" style="color:var(--dim)">Complete missions to unlock each power</div>
+  <button onclick="toggleHelp()">GOT IT</button>
+</div></div>
 <div id="seed-display"></div>
-
 <script>
-// ========== SETUP ==========
-const canvas = document.getElementById('cosmos');
-const ctx = canvas.getContext('2d');
-let W, H;
-
-function resize() {
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
-}
-resize();
-window.addEventListener('resize', resize);
-
-// Seed
-const seed = Math.floor(Math.random() * 999999).toString().padStart(6, '0');
-document.getElementById('seed-display').textContent = 'COSMOS #' + seed;
-
-// ========== CAMERA ==========
-const cam = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
-
-function screenToWorld(sx, sy) {
-  return {
-    x: (sx - W / 2) / cam.zoom + cam.x,
-    y: (sy - H / 2) / cam.zoom + cam.y
-  };
-}
-
-function worldToScreen(wx, wy) {
-  return {
-    x: (wx - cam.x) * cam.zoom + W / 2,
-    y: (wy - cam.y) * cam.zoom + H / 2
-  };
-}
-
-// ========== PARTICLES ==========
-const particles = [];
-const stars = [];
-const civilizations = [];
-const explosions = [];
-const MAX_PARTICLES = 5000;
-let epoch = 0;
-let timeScale = 1;
-let activePower = 0;
-
-class Particle {
-  constructor(x, y, vx = 0, vy = 0, mass = 0.5) {
-    this.x = x;
-    this.y = y;
-    this.vx = vx;
-    this.vy = vy;
-    this.mass = mass;
-    this.radius = Math.sqrt(mass) * 0.8;
-    this.temp = 0.2 + Math.random() * 0.3; // color temperature
-    this.age = 0;
-    this.alive = true;
-  }
-
-  update(dt) {
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
-    this.age += dt;
-    this.vx *= 0.9995;
-    this.vy *= 0.9995;
-  }
-}
-
-class Star {
-  constructor(x, y, mass) {
-    this.x = x;
-    this.y = y;
-    this.vx = 0;
-    this.vy = 0;
-    this.mass = mass;
-    this.radius = Math.pow(mass, 0.4) * 2;
-    this.temp = Math.min(1, mass / 40); // hotter = bluer
-    this.age = 0;
-    this.alive = true;
-    this.maxAge = 300 + (100 / Math.max(mass, 1)) * 200; // bigger = shorter life
-    this.pulsePhase = Math.random() * Math.PI * 2;
-    this.hasCiv = false;
-    this.planets = Math.floor(Math.random() * 4);
-  }
-
-  update(dt) {
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
-    this.age += dt;
-    this.pulsePhase += 0.03;
-    this.vx *= 0.999;
-    this.vy *= 0.999;
-
-    // Supernova check
-    if (this.age > this.maxAge && this.mass > 8) {
-      this.supernova();
-      return;
-    }
-
-    // Civilization emergence on stable, medium stars with planets
-    if (!this.hasCiv && this.planets > 1 && this.mass > 3 && this.mass < 25 && this.age > 100 && Math.random() < 0.0003 * dt) {
-      this.hasCiv = true;
-      civilizations.push(new Civilization(this));
-    }
-  }
-
-  supernova() {
-    this.alive = false;
-    explosions.push({ x: this.x, y: this.y, radius: 0, maxRadius: this.mass * 8, alpha: 1, color: this.temp > 0.5 ? '#00e5ff' : '#ff6b8a' });
-
-    // Eject particles
-    const ejectCount = Math.min(40, Math.floor(this.mass * 2));
-    for (let i = 0; i < ejectCount; i++) {
-      const angle = (Math.PI * 2 * i / ejectCount) + (Math.random() - 0.5) * 0.5;
-      const speed = 2 + Math.random() * 4;
-      if (particles.length < MAX_PARTICLES) {
-        const p = new Particle(
-          this.x + Math.cos(angle) * 5,
-          this.y + Math.sin(angle) * 5,
-          Math.cos(angle) * speed + this.vx,
-          Math.sin(angle) * speed + this.vy,
-          0.3 + Math.random() * 0.8
-        );
-        p.temp = 0.8 + Math.random() * 0.2;
-        particles.push(p);
-      }
-    }
-    narrate("Supernova. " + (this.mass > 20 ? "That one was personal." : "Beautiful destruction. The cosmos recycles."));
-  }
-
-  getColor() {
-    const pulse = 0.85 + 0.15 * Math.sin(this.pulsePhase);
-    if (this.temp > 0.7) return `rgba(150,180,255,${pulse})`;
-    if (this.temp > 0.4) return `rgba(255,240,220,${pulse})`;
-    return `rgba(255,180,120,${pulse})`;
-  }
-}
-
-class Civilization {
-  constructor(star) {
-    this.star = star;
-    this.x = star.x;
-    this.y = star.y;
-    this.tech = 0;
-    this.age = 0;
-    this.alive = true;
-    this.name = this.generateName();
-    this.lastMessage = 0;
-    this.hasMessaged = false;
-
-    narrate(`Life detected near a ${star.mass > 15 ? 'massive' : 'stable'} star. The ${this.name} have discovered fire. Don't step on them.`);
-  }
-
-  generateName() {
-    const prefixes = ['Zor', 'Vel', 'Kha', 'Myr', 'Tal', 'Ori', 'Nex', 'Pul', 'Fen', 'Axi'];
-    const suffixes = ['ians', 'oni', 'ites', 'ari', 'kin', 'eth', 'wyn', 'dar'];
-    return prefixes[Math.floor(Math.random() * prefixes.length)] + suffixes[Math.floor(Math.random() * suffixes.length)];
-  }
-
-  update(dt) {
-    if (!this.star.alive) {
-      this.alive = false;
-      narrate(`The ${this.name} are gone. Their star took them. A moment of silence.`);
-      return;
-    }
-    this.x = this.star.x;
-    this.y = this.star.y;
-    this.age += dt;
-    this.tech += dt * 0.008 * (1 + Math.random() * 0.5);
-
-    // Send messages at tech milestones
-    if (this.tech > 5 && !this.hasMessaged) {
-      this.sendMessage("We exist. Is anyone there?");
-      this.hasMessaged = true;
-    } else if (this.tech > 20 && this.age > 50 && Date.now() - this.lastMessage > 15000 && Math.random() < 0.01) {
-      const msgs = [
-        "Overlord, we've invented pizza. You're welcome.",
-        "The cats have unionized. Send help.",
-        "We detected your cursor. Are you god?",
-        "Warp drive online. Coming to find you.",
-        "We built a monument to the Great Architect.",
-        "Our philosophers debate if the void has edges.",
-        "We've discovered music. It sounds like math.",
-        "Civil war averted. Barely.",
-        "Our telescopes found the other stars. We're not alone.",
-        "Request: more gravity please. Things keep floating away.",
-      ];
-      this.sendMessage(msgs[Math.floor(Math.random() * msgs.length)]);
-    }
-  }
-
-  sendMessage(text) {
-    this.lastMessage = Date.now();
-    const screen = worldToScreen(this.x, this.y);
-    const msg = document.createElement('div');
-    msg.className = 'civ-msg';
-    msg.style.left = Math.min(W - 250, Math.max(10, screen.x)) + 'px';
-    msg.style.top = Math.min(H - 40, Math.max(10, screen.y - 30)) + 'px';
-    msg.textContent = `[${this.name}] ${text}`;
-    document.body.appendChild(msg);
-    requestAnimationFrame(() => msg.classList.add('visible'));
-    setTimeout(() => { msg.classList.remove('visible'); setTimeout(() => msg.remove(), 600); }, 5000);
-  }
-}
-
-// ========== GRAVITY (simplified spatial) ==========
-function applyGravity(dt) {
-  // Stars attract particles
-  for (const s of stars) {
-    if (!s.alive) continue;
-    for (const p of particles) {
-      if (!p.alive) continue;
-      const dx = s.x - p.x;
-      const dy = s.y - p.y;
-      const distSq = dx * dx + dy * dy + 10;
-      const dist = Math.sqrt(distSq);
-
-      // Merge if close enough
-      if (dist < s.radius + 1) {
-        s.mass += p.mass * 0.5;
-        s.radius = Math.pow(s.mass, 0.4) * 2;
-        s.temp = Math.min(1, s.mass / 40);
-        p.alive = false;
-        continue;
-      }
-
-      const force = (s.mass * 0.8) / distSq;
-      p.vx += (dx / dist) * force * dt;
-      p.vy += (dy / dist) * force * dt;
-    }
-  }
-
-  // Star-star gravity
-  for (let i = 0; i < stars.length; i++) {
-    if (!stars[i].alive) continue;
-    for (let j = i + 1; j < stars.length; j++) {
-      if (!stars[j].alive) continue;
-      const dx = stars[j].x - stars[i].x;
-      const dy = stars[j].y - stars[i].y;
-      const distSq = dx * dx + dy * dy + 50;
-      const dist = Math.sqrt(distSq);
-
-      // Merge stars if close
-      if (dist < stars[i].radius + stars[j].radius) {
-        stars[i].mass += stars[j].mass;
-        stars[i].radius = Math.pow(stars[i].mass, 0.4) * 2;
-        stars[i].temp = Math.min(1, stars[i].mass / 40);
-        stars[i].vx = (stars[i].vx + stars[j].vx) * 0.5;
-        stars[i].vy = (stars[i].vy + stars[j].vy) * 0.5;
-        stars[j].alive = false;
-        narrate("Two stars merged. The gravity is delicious.");
-        continue;
-      }
-
-      const force = (stars[i].mass * stars[j].mass * 0.01) / distSq;
-      const fx = (dx / dist) * force;
-      const fy = (dy / dist) * force;
-      stars[i].vx += fx * dt / Math.max(stars[i].mass, 0.1);
-      stars[i].vy += fy * dt / Math.max(stars[i].mass, 0.1);
-      stars[j].vx -= fx * dt / Math.max(stars[j].mass, 0.1);
-      stars[j].vy -= fy * dt / Math.max(stars[j].mass, 0.1);
-    }
-  }
-
-  // Particle clustering → star formation
-  if (Math.random() < 0.02 * dt) {
-    checkStarFormation();
-  }
-}
-
-function checkStarFormation() {
-  // Grid-based density check
-  const grid = {};
-  const cellSize = 30;
-  for (const p of particles) {
-    if (!p.alive) continue;
-    const key = Math.floor(p.x / cellSize) + ',' + Math.floor(p.y / cellSize);
-    if (!grid[key]) grid[key] = [];
-    grid[key].push(p);
-  }
-
-  for (const key in grid) {
-    const cell = grid[key];
-    if (cell.length >= 12) {
-      // Enough density — form a star
-      let cx = 0, cy = 0, totalMass = 0, tvx = 0, tvy = 0;
-      for (const p of cell) {
-        cx += p.x * p.mass;
-        cy += p.y * p.mass;
-        tvx += p.vx * p.mass;
-        tvy += p.vy * p.mass;
-        totalMass += p.mass;
-      }
-      cx /= totalMass;
-      cy /= totalMass;
-      tvx /= totalMass;
-      tvy /= totalMass;
-
-      const star = new Star(cx, cy, totalMass);
-      star.vx = tvx;
-      star.vy = tvy;
-      stars.push(star);
-
-      for (const p of cell) p.alive = false;
-
-      narrate(totalMass > 15
-        ? "A massive star ignites. It'll burn fast and die young. Poetic."
-        : "Star formed. Hydrogen found purpose. Inspirational, really."
-      );
-    }
-  }
-}
-
-// ========== POWERS ==========
-function activatePower(n) {
-  activePower = activePower === n ? 0 : n;
-  document.querySelectorAll('.power-btn').forEach((b, i) => b.classList.toggle('active', i + 1 === activePower));
-
-  if (n === 1) narrate("Time warp engaged. Drag to slow local spacetime. Very responsible.");
-  if (n === 2) narrate("Probability hack active. Click to inject chaos. What could go wrong?");
-  if (n === 3) narrate("Big Glitch loaded. Click to detonate. I'd stand back.");
-}
-
-function usePower(wx, wy) {
-  if (activePower === 1) {
-    // Time warp — slow particles in radius
-    particles.forEach(p => {
-      const d = Math.sqrt((p.x - wx) ** 2 + (p.y - wy) ** 2);
-      if (d < 100) { p.vx *= 0.5; p.vy *= 0.5; }
-    });
-    stars.forEach(s => {
-      const d = Math.sqrt((s.x - wx) ** 2 + (s.y - wy) ** 2);
-      if (d < 100) { s.vx *= 0.7; s.vy *= 0.7; }
-    });
-  } else if (activePower === 2) {
-    // Probability hack — random wormholes, mutant particles
-    for (let i = 0; i < 8; i++) {
-      if (particles.length < MAX_PARTICLES) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 200;
-        particles.push(new Particle(
-          wx + Math.cos(angle) * dist,
-          wy + Math.sin(angle) * dist,
-          (Math.random() - 0.5) * 6,
-          (Math.random() - 0.5) * 6,
-          0.5 + Math.random() * 3
-        ));
-      }
-    }
-    narrate("Reality wobbled. Something new emerged from the noise.");
-  } else if (activePower === 3) {
-    // Big Glitch — explosive reset of an area
-    explosions.push({ x: wx, y: wy, radius: 0, maxRadius: 300, alpha: 1, color: '#ff6b8a' });
-    particles.forEach(p => {
-      const dx = p.x - wx;
-      const dy = p.y - wy;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < 200) {
-        const force = (200 - d) / 200 * 8;
-        p.vx += (dx / (d || 1)) * force;
-        p.vy += (dy / (d || 1)) * force;
-      }
-    });
-    stars.forEach(s => {
-      const dx = s.x - wx;
-      const dy = s.y - wy;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < 150) {
-        const force = (150 - d) / 150 * 5;
-        s.vx += (dx / (d || 1)) * force;
-        s.vy += (dy / (d || 1)) * force;
-      }
-    });
-    narrate("GLITCH. Reality shattered locally. The pieces will find new shapes.");
-  }
-}
-
-// ========== NARRATOR ==========
-const narEl = document.getElementById('nar-text');
-const narrator = document.getElementById('narrator');
-let narTimer;
-
-const ambientNarrations = [
-  "That cluster's orbiting like they're at a cosmic roundabout. Adorable.",
-  "You know what this universe needs? More chaos. Or less. Your call.",
-  "Physics doesn't judge. It just accelerates.",
-  "Fun fact: every star you made will die. But the particles live on. Deep.",
-  "The void between stars isn't empty. It's full of potential. And dark matter, probably.",
-  "Your universe has a unique signature. No one will ever see this exact sky again.",
-  "I've been watching your gravitational pulls. Very artistic. Very reckless.",
-  "Somewhere in here, atoms are wondering if they have free will.",
-  "The beautiful thing about entropy? It only goes one way. Forward.",
-  "If you zoom out far enough, it all looks like dust. Zoom in, and it's everything.",
-  "Every supernova is a library burning. Every new star is a library being written.",
-  "You're playing god with a mouse. The irony isn't lost on me.",
+const canvas=document.getElementById('cosmos'),ctx=canvas.getContext('2d');
+let W,H;function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}resize();addEventListener('resize',resize);
+const seed=Math.floor(Math.random()*999999).toString().padStart(6,'0');
+document.getElementById('seed-display').textContent='COSMOS #'+seed;
+const cam={x:0,y:0,zoom:1,targetZoom:1};
+function s2w(sx,sy){return{x:(sx-W/2)/cam.zoom+cam.x,y:(sy-H/2)/cam.zoom+cam.y}}
+function w2s(wx,wy){return{x:(wx-cam.x)*cam.zoom+W/2,y:(wy-cam.y)*cam.zoom+H/2}}
+const particles=[],stars=[],civilizations=[],explosions=[],MAX_P=5000;
+let epoch=0,activePow=0,gameStarted=false,helpOpen=false;
+// Missions
+const missions=[
+  {id:'m1',text:'Create your first star',desc:'Drag to paint matter — it will cluster and ignite',check:()=>stars.length>=1,reward:'Time Warp unlocked',power:1},
+  {id:'m2',text:'Form 3 stars',desc:'Keep painting matter in different areas',check:()=>stars.filter(s=>s.alive).length>=3,reward:'Probability Hack unlocked',power:2},
+  {id:'m3',text:'Evolve a civilization',desc:'Stable medium stars with planets can birth life',check:()=>civilizations.length>=1,reward:'Big Glitch unlocked',power:3},
+  {id:'m4',text:'Witness a supernova',desc:'Massive stars burn fast and explode spectacularly',check:()=>stats.supernovae>=1,reward:null},
+  {id:'m5',text:'Grow a civilization to Warp Drive',desc:'Keep their star alive long enough for them to advance',check:()=>civilizations.some(c=>c.tech>=30),reward:null},
 ];
+let currentMission=0;
+const stats={supernovae:0,totalStars:0,totalCivs:0,maxParticles:0,startTime:0};
+let narTimer,tutTimer;
 
-function narrate(text) {
-  clearTimeout(narTimer);
-  narEl.textContent = text;
-  narrator.classList.add('visible');
-  narTimer = setTimeout(() => narrator.classList.remove('visible'), 5000);
-}
+function narrate(t){clearTimeout(narTimer);document.getElementById('nar-text').textContent=t;document.getElementById('narrator').classList.add('visible');narTimer=setTimeout(()=>document.getElementById('narrator').classList.remove('visible'),5000)}
+function showTutorial(t){document.getElementById('tut-text').textContent=t;document.getElementById('tutorial').classList.add('visible');clearTimeout(tutTimer)}
+function closeTutorial(){document.getElementById('tutorial').classList.remove('visible')}
+function showAchievement(t){const a=document.createElement('div');a.className='achievement';a.textContent='★ '+t;document.body.appendChild(a);requestAnimationFrame(()=>a.classList.add('show'));setTimeout(()=>{a.classList.remove('show');setTimeout(()=>a.remove(),600)},3000)}
+function updateMission(){if(currentMission>=missions.length)return;const m=missions[currentMission];document.getElementById('mission-text').textContent=m.text;document.getElementById('mission-progress').textContent=m.desc;if(m.check()){showAchievement(m.text+' ✓'+(m.reward?' — '+m.reward:''));if(m.power)document.getElementById('pow'+m.power).classList.add('unlocked');currentMission++;if(currentMission<missions.length)setTimeout(()=>updateMission(),2000);else{document.getElementById('mission-text').textContent='ALL MISSIONS COMPLETE';document.getElementById('mission-progress').textContent='Free play — create anything'}}}
+function toggleHelp(){helpOpen=!helpOpen;document.getElementById('help-overlay').classList.toggle('open',helpOpen)}
+function startGame(){document.getElementById('obj-screen').classList.add('hidden');gameStarted=true;stats.startTime=Date.now();updateMission();setTimeout(()=>{narrate("Drag to paint matter into the void. Watch it come alive.");showTutorial("Drag your mouse to create matter. It will drift and cluster under gravity. When enough gathers, a star will ignite!")},1000)}
+function saveStats(){const s={room:'room5',name:'Infinite Cosmos',stars:stats.totalStars,civs:stats.totalCivs,supernovae:stats.supernovae,maxParticles:stats.maxParticles,epoch:Math.floor(epoch),missions:currentMission,time:Math.round((Date.now()-stats.startTime)/1000),date:Date.now()};const all=JSON.parse(localStorage.getItem('room0_stats')||'[]');all.push(s);localStorage.setItem('room0_stats',JSON.stringify(all))}
+// Auto-save every 30s
+setInterval(()=>{if(gameStarted)saveStats()},30000);
 
-function ambientNarrate() {
-  if (Math.random() < 0.3 && stars.length > 0) {
-    narrate(ambientNarrations[Math.floor(Math.random() * ambientNarrations.length)]);
-  }
-  setTimeout(ambientNarrate, 8000 + Math.random() * 12000);
-}
-
-setTimeout(() => { narrator.classList.add('visible'); }, 500);
-setTimeout(ambientNarrate, 15000);
-
-// ========== INPUT ==========
-let dragging = false;
-let rightDragging = false;
-let lastMX = 0, lastMY = 0;
-
-canvas.addEventListener('mousedown', e => {
-  if (e.button === 2) { rightDragging = true; lastMX = e.clientX; lastMY = e.clientY; return; }
-  dragging = true;
-  lastMX = e.clientX;
-  lastMY = e.clientY;
-
-  if (activePower) {
-    const w = screenToWorld(e.clientX, e.clientY);
-    usePower(w.x, w.y);
-  }
-});
-
-canvas.addEventListener('mouseup', e => {
-  if (e.button === 2) { rightDragging = false; return; }
-  dragging = false;
-});
-
-canvas.addEventListener('mousemove', e => {
-  if (rightDragging) {
-    cam.x -= (e.clientX - lastMX) / cam.zoom;
-    cam.y -= (e.clientY - lastMY) / cam.zoom;
-    lastMX = e.clientX; lastMY = e.clientY;
-    return;
-  }
-
-  if (dragging && !activePower) {
-    const w = screenToWorld(e.clientX, e.clientY);
-    for (let i = 0; i < 3; i++) {
-      if (particles.length < MAX_PARTICLES) {
-        particles.push(new Particle(
-          w.x + (Math.random() - 0.5) * 30,
-          w.y + (Math.random() - 0.5) * 30,
-          (Math.random() - 0.5) * 0.5,
-          (Math.random() - 0.5) * 0.5,
-          0.3 + Math.random() * 0.7
-        ));
-      }
-    }
-  }
-  lastMX = e.clientX; lastMY = e.clientY;
-});
-
-canvas.addEventListener('wheel', e => {
-  const factor = e.deltaY > 0 ? 0.9 : 1.1;
-  cam.targetZoom *= factor;
-  cam.targetZoom = Math.max(0.01, Math.min(cam.targetZoom, 50));
-});
-
-canvas.addEventListener('contextmenu', e => e.preventDefault());
-
-// Touch support
-let touchDist = 0;
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  if (e.touches.length === 1) {
-    dragging = true;
-    lastMX = e.touches[0].clientX;
-    lastMY = e.touches[0].clientY;
-  } else if (e.touches.length === 2) {
-    dragging = false;
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    touchDist = Math.sqrt(dx * dx + dy * dy);
-  }
-});
-
-canvas.addEventListener('touchmove', e => {
-  e.preventDefault();
-  if (e.touches.length === 1 && dragging) {
-    const w = screenToWorld(e.touches[0].clientX, e.touches[0].clientY);
-    if (!activePower) {
-      for (let i = 0; i < 2; i++) {
-        if (particles.length < MAX_PARTICLES) {
-          particles.push(new Particle(w.x + (Math.random()-0.5)*20, w.y + (Math.random()-0.5)*20, 0, 0, 0.4));
-        }
-      }
-    }
-    lastMX = e.touches[0].clientX;
-    lastMY = e.touches[0].clientY;
-  } else if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    const newDist = Math.sqrt(dx * dx + dy * dy);
-    cam.targetZoom *= newDist / (touchDist || newDist);
-    cam.targetZoom = Math.max(0.01, Math.min(cam.targetZoom, 50));
-    touchDist = newDist;
-  }
-});
-
-canvas.addEventListener('touchend', () => { dragging = false; });
-
-// Keyboard
-document.addEventListener('keydown', e => {
-  if (e.key === '1') activatePower(1);
-  if (e.key === '2') activatePower(2);
-  if (e.key === '3') activatePower(3);
-  if (e.key === ' ') { e.preventDefault(); activatePower(3); const w = screenToWorld(W/2, H/2); usePower(w.x, w.y); }
-});
-
-// ========== BACKGROUND STARS ==========
-const bgStars = [];
-for (let i = 0; i < 300; i++) {
-  bgStars.push({ x: Math.random(), y: Math.random(), r: Math.random() * 1.2, a: Math.random() * 0.25, tw: Math.random() * Math.PI * 2 });
-}
-
-// ========== RENDER ==========
-function draw() {
-  ctx.fillStyle = 'rgba(2, 2, 4, 0.2)';
-  ctx.fillRect(0, 0, W, H);
-
-  // BG stars (parallax)
-  const t = Date.now() * 0.0005;
-  bgStars.forEach(s => {
-    const twinkle = 0.5 + 0.5 * Math.sin(t + s.tw);
-    ctx.fillStyle = `rgba(200,192,180,${s.a * twinkle})`;
-    const bx = ((s.x * W + cam.x * 0.02) % W + W) % W;
-    const by = ((s.y * H + cam.y * 0.02) % H + H) % H;
-    ctx.fillRect(bx, by, s.r, s.r);
-  });
-
-  ctx.save();
-  ctx.translate(W / 2, H / 2);
-  ctx.scale(cam.zoom, cam.zoom);
-  ctx.translate(-cam.x, -cam.y);
-
-  // Particles
-  for (const p of particles) {
-    if (!p.alive) continue;
-    const r = Math.max(0.5, p.radius * (0.8 + 0.2 * Math.sin(p.age * 2)));
-    if (p.temp > 0.7) ctx.fillStyle = `rgba(150,200,255,${0.6 + p.temp * 0.3})`;
-    else if (p.temp > 0.4) ctx.fillStyle = `rgba(255,220,180,${0.5 + p.temp * 0.3})`;
-    else ctx.fillStyle = `rgba(255,180,140,${0.4 + p.temp * 0.3})`;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Stars
-  for (const s of stars) {
-    if (!s.alive) continue;
-    const col = s.getColor();
-
-    // Glow layers
-    ctx.globalAlpha = 0.04;
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.radius * 8, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.globalAlpha = 0.08;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.radius * 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Core
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Hot center
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.radius * 0.35, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Civ indicator
-    if (s.hasCiv) {
-      ctx.strokeStyle = 'rgba(78,255,145,0.4)';
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.radius * 3, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  }
-
-  // Explosions
-  for (const ex of explosions) {
-    ctx.globalAlpha = ex.alpha * 0.3;
-    ctx.fillStyle = ex.color;
-    ctx.beginPath();
-    ctx.arc(ex.x, ex.y, ex.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = ex.alpha;
-    ctx.strokeStyle = ex.color;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(ex.x, ex.y, ex.radius, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  ctx.restore();
-  ctx.globalAlpha = 1;
-}
-
-// ========== UPDATE ==========
-function update() {
-  const dt = timeScale;
-
-  // Smooth zoom
-  cam.zoom += (cam.targetZoom - cam.zoom) * 0.1;
-
-  // Update particles
-  for (let i = particles.length - 1; i >= 0; i--) {
-    if (!particles[i].alive) { particles.splice(i, 1); continue; }
-    particles[i].update(dt);
-  }
-
-  // Update stars
-  for (let i = stars.length - 1; i >= 0; i--) {
-    if (!stars[i].alive) { stars.splice(i, 1); continue; }
-    stars[i].update(dt);
-  }
-
-  // Update civilizations
-  for (let i = civilizations.length - 1; i >= 0; i--) {
-    if (!civilizations[i].alive) { civilizations.splice(i, 1); continue; }
-    civilizations[i].update(dt);
-  }
-
-  // Update explosions
-  for (let i = explosions.length - 1; i >= 0; i--) {
-    explosions[i].radius += 3;
-    explosions[i].alpha -= 0.015;
-    if (explosions[i].alpha <= 0) explosions.splice(i, 1);
-  }
-
-  // Gravity
-  applyGravity(dt);
-
-  // Epoch
-  epoch += dt * 0.01;
-
-  // Stats
-  if (Math.random() < 0.1) {
-    document.getElementById('s-particles').textContent = particles.length;
-    document.getElementById('s-stars').textContent = stars.filter(s => s.alive).length;
-    document.getElementById('s-civs').textContent = civilizations.filter(c => c.alive).length;
-    document.getElementById('s-epoch').textContent = Math.floor(epoch);
-  }
-}
-
-// ========== LOOP ==========
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-loop();
-
-// ========== INITIAL SEED ==========
-setTimeout(() => {
-  const cx = 0, cy = 0;
-  for (let i = 0; i < 60; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = Math.random() * 100;
-    particles.push(new Particle(
-      cx + Math.cos(angle) * dist,
-      cy + Math.sin(angle) * dist,
-      (Math.random() - 0.5) * 0.3,
-      (Math.random() - 0.5) * 0.3,
-      0.3 + Math.random() * 0.6
-    ));
-  }
-}, 2000);
+class Particle{constructor(x,y,vx=0,vy=0,mass=.5){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.mass=mass;this.radius=Math.sqrt(mass)*.8;this.temp=.2+Math.random()*.3;this.age=0;this.alive=true}update(dt){this.x+=this.vx*dt;this.y+=this.vy*dt;this.age+=dt;this.vx*=.9995;this.vy*=.9995}}
+class Star{constructor(x,y,mass){this.x=x;this.y=y;this.vx=0;this.vy=0;this.mass=mass;this.radius=Math.pow(mass,.4)*2;this.temp=Math.min(1,mass/40);this.age=0;this.alive=true;this.maxAge=300+(100/Math.max(mass,1))*200;this.pulsePhase=Math.random()*Math.PI*2;this.hasCiv=false;this.planets=Math.floor(Math.random()*4);stats.totalStars++}
+update(dt){this.x+=this.vx*dt;this.y+=this.vy*dt;this.age+=dt;this.pulsePhase+=.03;this.vx*=.999;this.vy*=.999;if(this.age>this.maxAge&&this.mass>8)this.supernova();if(!this.hasCiv&&this.planets>1&&this.mass>3&&this.mass<25&&this.age>100&&Math.random()<.0003*dt){this.hasCiv=true;civilizations.push(new Civilization(this));stats.totalCivs++}}
+supernova(){this.alive=false;stats.supernovae++;explosions.push({x:this.x,y:this.y,radius:0,maxRadius:this.mass*8,alpha:1,color:this.temp>.5?'#00e5ff':'#ff6b8a'});const n=Math.min(40,Math.floor(this.mass*2));for(let i=0;i<n;i++){const a=(Math.PI*2*i/n)+(Math.random()-.5)*.5,sp=2+Math.random()*4;if(particles.length<MAX_P){const p=new Particle(this.x+Math.cos(a)*5,this.y+Math.sin(a)*5,Math.cos(a)*sp+this.vx,Math.sin(a)*sp+this.vy,.3+Math.random()*.8);p.temp=.8+Math.random()*.2;particles.push(p)}}narrate("Supernova! "+(this.mass>20?"That was a big one. The shockwave will seed new stars.":"Beautiful destruction."))}
+getColor(){const p=.85+.15*Math.sin(this.pulsePhase);if(this.temp>.7)return`rgba(150,180,255,${p})`;if(this.temp>.4)return`rgba(255,240,220,${p})`;return`rgba(255,180,120,${p})`}}
+class Civilization{constructor(star){this.star=star;this.x=star.x;this.y=star.y;this.tech=0;this.age=0;this.alive=true;this.name=(['Zor','Vel','Kha','Myr','Tal','Ori','Nex'][Math.floor(Math.random()*7)])+(['ians','oni','ites','ari','kin','eth'][Math.floor(Math.random()*6)]);this.lastMsg=0;this.milestones={fire:false,radio:false,warp:false};narrate(`Life detected! The ${this.name} have discovered fire.`)}
+update(dt){if(!this.star.alive){this.alive=false;narrate(`The ${this.name} are gone. Their star took them.`);return}this.x=this.star.x;this.y=this.star.y;this.age+=dt;this.tech+=dt*.008*(1+Math.random()*.5);if(this.tech>5&&!this.milestones.fire){this.milestones.fire=true;this.sendMsg("We exist!")}if(this.tech>15&&!this.milestones.radio){this.milestones.radio=true;this.sendMsg("Radio invented. Is anyone there?")}if(this.tech>30&&!this.milestones.warp){this.milestones.warp=true;this.sendMsg("WARP DRIVE ONLINE. We're coming to find you.")}if(this.tech>10&&Date.now()-this.lastMsg>15000&&Math.random()<.008){const m=["The cats have unionized.","We built a monument to you.","Our philosophers debate the void.","Request: more gravity please.","We've discovered music.","Civil war averted. Barely.","Population hit 1 billion!","We detected your cursor. Are you god?"];this.sendMsg(m[Math.floor(Math.random()*m.length)])}}
+sendMsg(t){this.lastMsg=Date.now();const sc=w2s(this.x,this.y);const m=document.createElement('div');m.style.cssText=`position:fixed;font-family:'Sometype Mono',monospace;font-size:10px;color:#4eff91;background:rgba(2,2,4,.8);border:1px solid rgba(78,255,145,.2);padding:6px 10px;z-index:90;opacity:0;transition:opacity .5s,transform .5s;pointer-events:none;letter-spacing:.5px;left:${Math.min(W-250,Math.max(10,sc.x))}px;top:${Math.min(H-40,Math.max(10,sc.y-30))}px`;m.textContent=`[${this.name}] ${t}`;document.body.appendChild(m);requestAnimationFrame(()=>{m.style.opacity='1';m.style.transform='translateY(-10px)'});setTimeout(()=>{m.style.opacity='0';setTimeout(()=>m.remove(),600)},5000)}}
+function applyGravity(dt){for(const s of stars){if(!s.alive)continue;for(const p of particles){if(!p.alive)continue;const dx=s.x-p.x,dy=s.y-p.y,dSq=dx*dx+dy*dy+10,d=Math.sqrt(dSq);if(d<s.radius+1){s.mass+=p.mass*.5;s.radius=Math.pow(s.mass,.4)*2;s.temp=Math.min(1,s.mass/40);p.alive=false;continue}const f=(s.mass*.8)/dSq;p.vx+=(dx/d)*f*dt;p.vy+=(dy/d)*f*dt}}
+for(let i=0;i<stars.length;i++){if(!stars[i].alive)continue;for(let j=i+1;j<stars.length;j++){if(!stars[j].alive)continue;const dx=stars[j].x-stars[i].x,dy=stars[j].y-stars[i].y,dSq=dx*dx+dy*dy+50,d=Math.sqrt(dSq);if(d<stars[i].radius+stars[j].radius){stars[i].mass+=stars[j].mass;stars[i].radius=Math.pow(stars[i].mass,.4)*2;stars[i].vx=(stars[i].vx+stars[j].vx)*.5;stars[i].vy=(stars[i].vy+stars[j].vy)*.5;stars[j].alive=false;narrate("Two stars merged.");continue}const f=(stars[i].mass*stars[j].mass*.01)/dSq,fx=(dx/d)*f,fy=(dy/d)*f;stars[i].vx+=fx*dt/Math.max(stars[i].mass,.1);stars[i].vy+=fy*dt/Math.max(stars[i].mass,.1);stars[j].vx-=fx*dt/Math.max(stars[j].mass,.1);stars[j].vy-=fy*dt/Math.max(stars[j].mass,.1)}}
+if(Math.random()<.02*dt)checkStarFormation()}
+function checkStarFormation(){const grid={},cs=30;for(const p of particles){if(!p.alive)continue;const k=Math.floor(p.x/cs)+','+Math.floor(p.y/cs);if(!grid[k])grid[k]=[];grid[k].push(p)}for(const k in grid){const cell=grid[k];if(cell.length>=12){let cx=0,cy=0,tm=0,tvx=0,tvy=0;for(const p of cell){cx+=p.x*p.mass;cy+=p.y*p.mass;tvx+=p.vx*p.mass;tvy+=p.vy*p.mass;tm+=p.mass}cx/=tm;cy/=tm;tvx/=tm;tvy/=tm;const star=new Star(cx,cy,tm);star.vx=tvx;star.vy=tvy;stars.push(star);for(const p of cell)p.alive=false;narrate(tm>15?"A massive star ignites! Watch for the supernova.":"Star formed. Hydrogen found purpose.")}}}
+function activatePower(n){if(!document.getElementById('pow'+n).classList.contains('unlocked'))return;activePow=activePow===n?0:n;document.querySelectorAll('.pow').forEach((b,i)=>b.classList.toggle('active',i+1===activePow));if(n===1)narrate("Time Warp active. Click to slow local spacetime.");if(n===2)narrate("Probability Hack active. Click to inject chaos.");if(n===3)narrate("Big Glitch loaded. Click to detonate.")}
+function usePower(wx,wy){if(activePow===1){particles.forEach(p=>{const d=Math.sqrt((p.x-wx)**2+(p.y-wy)**2);if(d<100){p.vx*=.5;p.vy*=.5}});stars.forEach(s=>{const d=Math.sqrt((s.x-wx)**2+(s.y-wy)**2);if(d<100){s.vx*=.7;s.vy*=.7}})}else if(activePow===2){for(let i=0;i<8;i++)if(particles.length<MAX_P){const a=Math.random()*Math.PI*2,d=Math.random()*200;particles.push(new Particle(wx+Math.cos(a)*d,wy+Math.sin(a)*d,(Math.random()-.5)*6,(Math.random()-.5)*6,.5+Math.random()*3))}narrate("Reality wobbled. Something new emerged.")}else if(activePow===3){explosions.push({x:wx,y:wy,radius:0,maxRadius:300,alpha:1,color:'#ff6b8a'});particles.forEach(p=>{const dx=p.x-wx,dy=p.y-wy,d=Math.sqrt(dx*dx+dy*dy);if(d<200){const f=(200-d)/200*8;p.vx+=(dx/(d||1))*f;p.vy+=(dy/(d||1))*f}});stars.forEach(s=>{const dx=s.x-wx,dy=s.y-wy,d=Math.sqrt(dx*dx+dy*dy);if(d<150){const f=(150-d)/150*5;s.vx+=(dx/(d||1))*f;s.vy+=(dy/(d||1))*f}});narrate("GLITCH. Reality shattered locally.")}}
+const bgStars=[];for(let i=0;i<300;i++)bgStars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.2,a:Math.random()*.25,tw:Math.random()*Math.PI*2});
+function draw(){ctx.fillStyle='rgba(2,2,4,0.2)';ctx.fillRect(0,0,W,H);const t=Date.now()*.0005;bgStars.forEach(s=>{const tw=.5+.5*Math.sin(t+s.tw);ctx.fillStyle=`rgba(200,192,180,${s.a*tw})`;ctx.fillRect(((s.x*W+cam.x*.02)%W+W)%W,((s.y*H+cam.y*.02)%H+H)%H,s.r,s.r)});
+ctx.save();ctx.translate(W/2,H/2);ctx.scale(cam.zoom,cam.zoom);ctx.translate(-cam.x,-cam.y);
+for(const p of particles){if(!p.alive)continue;const r=Math.max(.5,p.radius*(.8+.2*Math.sin(p.age*2)));ctx.fillStyle=p.temp>.7?`rgba(150,200,255,.7)`:`rgba(255,200,150,.5)`;ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill()}
+for(const s of stars){if(!s.alive)continue;const col=s.getColor();ctx.globalAlpha=.04;ctx.fillStyle=col;ctx.beginPath();ctx.arc(s.x,s.y,s.radius*8,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.08;ctx.beginPath();ctx.arc(s.x,s.y,s.radius*4,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle=col;ctx.beginPath();ctx.arc(s.x,s.y,s.radius,0,Math.PI*2);ctx.fill();ctx.fillStyle='rgba(255,255,255,.7)';ctx.beginPath();ctx.arc(s.x,s.y,s.radius*.35,0,Math.PI*2);ctx.fill();if(s.hasCiv){ctx.strokeStyle='rgba(78,255,145,.4)';ctx.lineWidth=.5;ctx.beginPath();ctx.arc(s.x,s.y,s.radius*3,0,Math.PI*2);ctx.stroke()}}
+for(const ex of explosions){ctx.globalAlpha=ex.alpha*.3;ctx.fillStyle=ex.color;ctx.beginPath();ctx.arc(ex.x,ex.y,ex.radius,0,Math.PI*2);ctx.fill();ctx.globalAlpha=ex.alpha;ctx.strokeStyle=ex.color;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(ex.x,ex.y,ex.radius,0,Math.PI*2);ctx.stroke()}
+ctx.restore();ctx.globalAlpha=1}
+function update(){const dt=1;cam.zoom+=(cam.targetZoom-cam.zoom)*.1;
+for(let i=particles.length-1;i>=0;i--){if(!particles[i].alive){particles.splice(i,1);continue}particles[i].update(dt)}
+for(let i=stars.length-1;i>=0;i--){if(!stars[i].alive){stars.splice(i,1);continue}stars[i].update(dt)}
+for(let i=civilizations.length-1;i>=0;i--){if(!civilizations[i].alive){civilizations.splice(i,1);continue}civilizations[i].update(dt)}
+for(let i=explosions.length-1;i>=0;i--){explosions[i].radius+=3;explosions[i].alpha-=.015;if(explosions[i].alpha<=0)explosions.splice(i,1)}
+applyGravity(dt);epoch+=dt*.01;
+stats.maxParticles=Math.max(stats.maxParticles,particles.length);
+if(Math.random()<.1){document.getElementById('s-p').textContent=particles.length;document.getElementById('s-s').textContent=stars.filter(s=>s.alive).length;document.getElementById('s-c').textContent=civilizations.filter(c=>c.alive).length;document.getElementById('s-e').textContent=Math.floor(epoch)}
+updateMission()}
+function loop(){if(gameStarted){update();draw()}requestAnimationFrame(loop)}loop();
+// Ambient narration
+const ambNar=["That cluster's forming nicely.","Physics doesn't judge. It just accelerates.","Every star you made will die. But the particles live on.","Somewhere in here, atoms wonder if they have free will.","You're playing god with a mouse. The irony isn't lost on me."];
+setInterval(()=>{if(gameStarted&&stars.length>0&&Math.random()<.3)narrate(ambNar[Math.floor(Math.random()*ambNar.length)])},12000);
+// Input
+let dragging=false,rightDrag=false,lmx=0,lmy=0;
+canvas.addEventListener('mousedown',e=>{if(!gameStarted)return;if(e.button===2){rightDrag=true;lmx=e.clientX;lmy=e.clientY;return}dragging=true;lmx=e.clientX;lmy=e.clientY;if(activePow){const w=s2w(e.clientX,e.clientY);usePower(w.x,w.y)}});
+canvas.addEventListener('mouseup',e=>{if(e.button===2){rightDrag=false;return}dragging=false});
+canvas.addEventListener('mousemove',e=>{if(rightDrag){cam.x-=(e.clientX-lmx)/cam.zoom;cam.y-=(e.clientY-lmy)/cam.zoom;lmx=e.clientX;lmy=e.clientY;return}if(dragging&&!activePow){const w=s2w(e.clientX,e.clientY);for(let i=0;i<3;i++)if(particles.length<MAX_P)particles.push(new Particle(w.x+(Math.random()-.5)*30,w.y+(Math.random()-.5)*30,(Math.random()-.5)*.5,(Math.random()-.5)*.5,.3+Math.random()*.7))}lmx=e.clientX;lmy=e.clientY});
+canvas.addEventListener('wheel',e=>{if(!gameStarted)return;cam.targetZoom*=e.deltaY>0?.9:1.1;cam.targetZoom=Math.max(.01,Math.min(cam.targetZoom,50))});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+let touchDist=0;
+canvas.addEventListener('touchstart',e=>{if(!gameStarted)return;e.preventDefault();if(e.touches.length===1){dragging=true;lmx=e.touches[0].clientX;lmy=e.touches[0].clientY}else if(e.touches.length===2){dragging=false;const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;touchDist=Math.sqrt(dx*dx+dy*dy)}});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(e.touches.length===1&&dragging){const w=s2w(e.touches[0].clientX,e.touches[0].clientY);if(!activePow)for(let i=0;i<2;i++)if(particles.length<MAX_P)particles.push(new Particle(w.x+(Math.random()-.5)*20,w.y+(Math.random()-.5)*20,0,0,.4))}else if(e.touches.length===2){const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY,nd=Math.sqrt(dx*dx+dy*dy);cam.targetZoom*=nd/(touchDist||nd);cam.targetZoom=Math.max(.01,Math.min(cam.targetZoom,50));touchDist=nd}});
+canvas.addEventListener('touchend',()=>{dragging=false});
+document.addEventListener('keydown',e=>{if(!gameStarted)return;if(e.key==='1')activatePower(1);if(e.key==='2')activatePower(2);if(e.key==='3')activatePower(3);if(e.key===' '){e.preventDefault();if(activePow){const w=s2w(W/2,H/2);usePower(w.x,w.y)}}if(e.key==='Escape'&&helpOpen)toggleHelp()});
 </script>
 </body>
 </html>

@@ -25,6 +25,9 @@ An experience that escapes its frame. The code leaks through, elements escape th
 ### Room 05 — Infinite Cosmos *(with Grok)*
 Grok (xAI) dreamed it. Claude built it. A cosmic sandbox where you sculpt matter, stars form from gravity, civilizations emerge and send you messages, and supernovae seed new worlds. Two AIs, one universe.
 
+### Stats Page
+Your personal archive. Every room tracks your play — time, clicks, stars born, civilizations evolved. All stored locally in your browser. No servers. Your data stays yours.
+
 ---
 
 ## How to Play

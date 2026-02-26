@@ -182,6 +182,19 @@
 </head>
 <body>
 
+
+<div id="obj-screen" style="position:fixed;inset:0;background:#060608;z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1s">
+  <h1 style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:300;letter-spacing:8px;color:#c8c0b4;margin-bottom:12px">BREACH</h1>
+  <div style="font-family:'Sometype Mono',monospace;font-size:10px;color:#4a4640;letter-spacing:3px;margin-bottom:30px">META EXPERIENCE</div>
+  <div style="font-family:'Cormorant Garamond',serif;font-size:17px;color:#c8c0b4;line-height:2;text-align:center;max-width:400px;margin-bottom:10px;font-weight:300">
+    A page that tears itself apart.<br>The code leaks through. Elements escape.<br>The browser becomes the canvas.
+  </div>
+  <div style="font-family:'Sometype Mono',monospace;font-size:10px;color:#2a2a30;letter-spacing:1px;line-height:2.5;text-align:center;margin-bottom:30px">
+    CLICK OR PRESS SPACE — advance the breach<br>7 PHASES TO COMPLETE<br>WATCH THE PAGE DISSOLVE
+  </div>
+  <button onclick="document.getElementById('obj-screen').style.opacity='0';document.getElementById('obj-screen').style.pointerEvents='none'" style="font-family:'Cormorant Garamond',serif;font-size:15px;color:#c47a7a;border:1px solid #c47a7a;background:none;padding:12px 36px;cursor:pointer;letter-spacing:3px;transition:all .4s">BEGIN</button>
+</div>
+
 <div id="grain"></div>
 <div id="scanlines"></div>
 <div id="border-breach"></div>
@@ -494,6 +507,27 @@ document.addEventListener('keydown', e => {
 setInterval(() => {
   if (phase > 2 && Math.random() < 0.15) glitchBar();
 }, 2000);
+  // Stats tracking
+  const breachStart = Date.now();
+  function saveBreachStats() {
+    const s = {room:'room4', name:'Breach', phase:phase, time:Math.round((Date.now()-breachStart)/1000), completed:phase>=7, date:Date.now()};
+    const all = JSON.parse(localStorage.getItem('room0_stats')||'[]');
+    all.push(s);
+    localStorage.setItem('room0_stats', JSON.stringify(all));
+  }
+  // Save when page unloads or when breach completes
+  window.addEventListener('beforeunload', saveBreachStats);
+
+  // Help overlay
+  const helpBtn = document.createElement('button');
+  helpBtn.textContent = '? HELP';
+  helpBtn.style.cssText = 'position:fixed;top:16px;left:16px;z-index:2500;font-family:"Sometype Mono",monospace;font-size:10px;color:#4a4640;letter-spacing:1px;background:none;border:1px solid #1e1e24;padding:6px 12px;cursor:pointer;transition:all .3s';
+  document.body.appendChild(helpBtn);
+  const helpOv = document.createElement('div');
+  helpOv.style.cssText = 'position:fixed;inset:0;background:rgba(6,6,8,.92);z-index:3000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s';
+  helpOv.innerHTML = '<div style="max-width:400px;text-align:center;padding:40px"><h2 style="font-family:Cormorant Garamond,serif;font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:#c47a7a">HOW TO PLAY</h2><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">CLICK or PRESS SPACE — advance the breach</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">7 PHASES — the page progressively breaks apart</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">Watch as code leaks through and elements escape</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">The browser IS the canvas. Just keep clicking.</div><button onclick="this.parentElement.parentElement.style.opacity=0;this.parentElement.parentElement.style.pointerEvents=\'none\'" style="font-family:Cormorant Garamond,serif;font-size:14px;color:#c47a7a;background:none;border:1px solid #c47a7a;padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s">GOT IT</button></div>';
+  document.body.appendChild(helpOv);
+  helpBtn.onclick = () => { helpOv.style.opacity = helpOv.style.opacity === '1' ? '0' : '1'; helpOv.style.pointerEvents = helpOv.style.pointerEvents === 'auto' ? 'none' : 'auto'; };
 </script>
 </body>
 </html>
