@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Collective — Meta AI × Claude</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Sometype+Mono:wght@400;500&display=swap');
+  :root{--void:#030308;--surface:#0a0a12;--panel:#0c0c18;--mint:#50e8a0;--gold:#d4a055;--rose:#e06888;--sky:#60a8e8;--violet:#a070e0;--text:#c8c0b4;--dim:#5a564f;--faint:#16161e;--font:'Cormorant Garamond',serif;--mono:'Sometype Mono',monospace}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--void);color:var(--text);font-family:var(--font);overflow:hidden;height:100vh;width:100vw;user-select:none}
+  #grain{position:fixed;inset:0;pointer-events:none;z-index:10000;opacity:.02;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  #obj-screen{position:fixed;inset:0;background:var(--void);z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1.5s}
+  #obj-screen.hidden{opacity:0;pointer-events:none}
+  #obj-screen h1{font-size:36px;font-weight:300;letter-spacing:8px;margin-bottom:6px;color:var(--mint)}
+  #obj-screen .collab{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:3px;margin-bottom:28px}
+  #obj-screen .goal{font-size:16px;font-weight:300;line-height:2;text-align:center;max-width:440px;margin-bottom:10px}
+  #obj-screen .rules{font-family:var(--mono);font-size:10px;color:#2a2a30;letter-spacing:1px;line-height:2.5;text-align:center;margin-bottom:28px}
+  #obj-screen button{font-family:var(--font);font-size:15px;color:var(--mint);border:1px solid var(--mint);background:none;padding:12px 36px;cursor:pointer;letter-spacing:3px;transition:all .4s}
+  #obj-screen button:hover{background:var(--mint);color:var(--void)}
+  #game{display:none;width:100vw;height:100vh;position:relative}
+  canvas{position:absolute;inset:0;cursor:crosshair}
+  /* Toolbar */
+  #toolbar{position:fixed;top:50%;left:12px;transform:translateY(-50%);z-index:200;display:flex;flex-direction:column;gap:6px}
+  .tool{width:44px;height:44px;border:1px solid var(--faint);background:rgba(10,10,18,.85);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;transition:all .3s;position:relative}
+  .tool:hover{border-color:var(--mint)}
+  .tool.active{border-color:var(--mint);box-shadow:0 0 10px rgba(80,232,160,.15)}
+  .tool .tip{position:absolute;left:52px;background:var(--panel);border:1px solid var(--faint);padding:4px 8px;font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s}
+  .tool:hover .tip{opacity:1}
+  /* HUD */
+  #hud{position:fixed;top:0;left:0;right:0;height:36px;background:rgba(3,3,8,.85);border-bottom:1px solid var(--faint);display:flex;align-items:center;padding:0 16px;z-index:200;font-family:var(--mono);font-size:10px;backdrop-filter:blur(4px)}
+  .hi{color:var(--dim);letter-spacing:1px;margin-right:20px}
+  .hv{color:var(--mint)}
+  /* Quest panel */
+  #quests{position:fixed;top:36px;right:0;width:260px;bottom:0;background:rgba(10,10,18,.92);border-left:1px solid var(--faint);z-index:150;overflow-y:auto;backdrop-filter:blur(4px)}
+  #quests::-webkit-scrollbar{width:3px}
+  #quests::-webkit-scrollbar-thumb{background:var(--faint)}
+  .qs{padding:14px;border-bottom:1px solid var(--faint)}
+  .qt{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:8px}
+  .quest-card{background:var(--surface);border:1px solid var(--faint);padding:10px;margin-bottom:6px;transition:all .3s}
+  .quest-card.active{border-color:var(--gold)}
+  .quest-card.complete{border-color:var(--mint);opacity:.6}
+  .qn{font-size:14px;font-weight:400;letter-spacing:1px}
+  .qd{font-size:11px;color:var(--dim);line-height:1.7;margin-top:4px;font-style:italic}
+  .qp{font-family:var(--mono);font-size:9px;color:var(--mint);letter-spacing:1px;margin-top:6px}
+  /* Architect chat */
+  #arch-chat{position:fixed;bottom:0;left:60px;right:260px;height:100px;background:rgba(3,3,8,.88);border-top:1px solid var(--faint);z-index:200;overflow-y:auto;padding:8px 14px;backdrop-filter:blur(4px)}
+  #arch-chat::-webkit-scrollbar{width:3px}
+  #arch-chat::-webkit-scrollbar-thumb{background:var(--faint)}
+  .chat-msg{font-size:12px;line-height:1.7;margin-bottom:3px}
+  .chat-msg .who{font-family:var(--mono);font-size:9px;letter-spacing:1px;margin-right:6px}
+  /* Element tooltip */
+  #elem-tip{position:fixed;background:var(--panel);border:1px solid var(--mint);padding:8px 12px;z-index:300;pointer-events:none;opacity:0;transition:opacity .3s;max-width:180px}
+  #elem-tip.vis{opacity:1}
+  /* Help */
+  #help-btn{position:fixed;top:44px;right:268px;z-index:200;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;background:none;border:1px solid var(--faint);padding:4px 10px;cursor:pointer;transition:all .3s}
+  #help-btn:hover{border-color:var(--mint);color:var(--mint)}
+  #help-ov{position:fixed;inset:0;background:rgba(3,3,8,.94);z-index:4000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s}
+  #help-ov.open{opacity:1;pointer-events:auto}
+  .hb{max-width:440px;text-align:center;padding:40px}
+  .hb h2{font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:var(--mint)}
+  .hm{font-family:var(--mono);font-size:11px;color:var(--text);letter-spacing:.5px;margin:8px 0;padding:8px;border:1px solid var(--faint);line-height:1.8;text-align:left}
+  .hb button{font-family:var(--font);font-size:14px;color:var(--mint);background:none;border:1px solid var(--mint);padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s}
+  .hb button:hover{background:var(--mint);color:var(--void)}
+</style>
+</head>
+<body>
+<div id="grain"></div>
+<div id="obj-screen">
+  <h1>THE COLLECTIVE</h1>
+  <div class="collab">META AI'S VISION × CLAUDE'S CRAFT</div>
+  <div class="goal">You are a co-architect of a world.<br>Place elements. Shape the landscape.<br>AI architects build alongside you.<br>The world watches what you create — and responds.</div>
+  <div class="rules">SELECT ELEMENTS FROM THE LEFT TOOLBAR<br>CLICK TO PLACE THEM ON THE CANVAS<br>THE WORLD GENERATES QUESTS FROM YOUR CREATIONS<br>AI ARCHITECTS CONTRIBUTE THEIR OWN IDEAS</div>
+  <button onclick="startGame()">BEGIN BUILDING</button>
+</div>
+<button id="help-btn" onclick="toggleHelp()" style="display:none">? HELP</button>
+<div id="help-ov" onclick="if(event.target===this)toggleHelp()"><div class="hb">
+  <h2>HOW TO PLAY</h2>
+  <div class="hm">🌲 SELECT an element from the toolbar (left side)</div>
+  <div class="hm">🖱️ CLICK on the canvas to place it</div>
+  <div class="hm">🤖 AI ARCHITECTS build alongside you — they react to what you place</div>
+  <div class="hm">📜 QUESTS appear based on what exists in the world (right panel)</div>
+  <div class="hm">✨ COMPLETE quests by placing the required elements</div>
+  <div class="hm">🏰 BUILD enough to unlock emergent storylines</div>
+  <div class="hm" style="color:rgba(196,149,106,.5);border-color:rgba(196,149,106,.15)">◆ FRAGMENT — complete 5 quests to earn it</div>
+  <button onclick="toggleHelp()">GOT IT</button>
+</div></div>
+<div id="game">
+  <canvas id="c"></canvas>
+  <div id="toolbar"></div>
+  <div id="hud">
+    <span class="hi" id="h-era" style="color:var(--mint);letter-spacing:2px">THE BLANK CANVAS</span>
+    <span class="hi">ELEMENTS: <span class="hv" id="h-elem">0</span></span>
+    <span class="hi">QUESTS: <span class="hv" id="h-quests">0/0</span></span>
+    <span class="hi">ARCHITECTS: <span class="hv" id="h-arch">4</span></span>
+    <span class="hi" style="margin-left:auto">WORLD HARMONY: <span class="hv" id="h-harmony">50</span></span>
+  </div>
+  <div id="quests"><div class="qs"><div class="qt">ACTIVE QUESTS</div><div id="quest-list"></div></div><div class="qs"><div class="qt">COMPLETED</div><div id="quest-done"></div></div></div>
+  <div id="arch-chat"></div>
+  <div id="elem-tip"></div>
+</div>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+let W,H;function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}resize();addEventListener('resize',resize);
+
+let gameOn=false,helpOpen=false,selectedTool=null,tick=0;
+const placed=[],quests=[],completedQuests=[];
+let harmony=50,questsCompleted=0;
+
+// Elements you can place
+const elements=[
+  {id:'forest',emoji:'🌲',name:'Forest',color:'#2d5a3a',desc:'A place of growth and mystery'},
+  {id:'ruins',emoji:'🏛️',name:'Ancient Ruins',color:'#6a5a4a',desc:'Remnants of forgotten civilizations'},
+  {id:'castle',emoji:'🏰',name:'Castle',color:'#5a5a6a',desc:'A seat of power and protection'},
+  {id:'market',emoji:'🏪',name:'Market',color:'#8a7050',desc:'Where stories and goods are traded'},
+  {id:'lake',emoji:'🌊',name:'Lake',color:'#3a5a8a',desc:'Still waters that reflect the sky'},
+  {id:'mountain',emoji:'⛰️',name:'Mountain',color:'#5a5a5a',desc:'Ancient stone reaching for the heavens'},
+  {id:'village',emoji:'🏘️',name:'Village',color:'#7a6a50',desc:'Where people gather and live'},
+  {id:'shrine',emoji:'⛩️',name:'Shrine',color:'#8a4a5a',desc:'A place of reverence and magic'},
+  {id:'creature',emoji:'🐉',name:'Creature',color:'#6a3a3a',desc:'A being of myth and wonder'},
+  {id:'crystal',emoji:'💎',name:'Crystal',color:'#5a3a8a',desc:'Concentrated magical energy'},
+  {id:'garden',emoji:'🌸',name:'Garden',color:'#5a7a5a',desc:'Beauty cultivated with care'},
+  {id:'tower',emoji:'🗼',name:'Tower',color:'#6a6a7a',desc:'A watchtower over the realm'},
+];
+
+// Build toolbar
+const tb=document.getElementById('toolbar');
+elements.forEach((e,i)=>{
+  const d=document.createElement('div');
+  d.className='tool';d.textContent=e.emoji;
+  d.innerHTML=e.emoji+`<span class="tip">${e.name}</span>`;
+  d.onclick=()=>{selectedTool=e;document.querySelectorAll('.tool').forEach(t=>t.classList.remove('active'));d.classList.add('active')};
+  tb.appendChild(d);
+});
+
+// AI Architects
+const architects=[
+  {name:'Lyra',color:'#60a8e8',style:'naturalist',pref:['forest','lake','garden','creature'],personality:'poetic'},
+  {name:'Kaz',color:'#e06888',style:'builder',pref:['castle','tower','village','market'],personality:'pragmatic'},
+  {name:'Orin',color:'#a070e0',style:'mystic',pref:['shrine','crystal','ruins','creature'],personality:'cryptic'},
+];
+
+function archChat(arch,text){
+  const c=document.getElementById('arch-chat');
+  const m=document.createElement('div');
+  m.className='chat-msg';
+  m.innerHTML=`<span class="who" style="color:${arch.color}">${arch.name.toUpperCase()}</span>${text}`;
+  c.appendChild(m);
+  c.scrollTop=c.scrollHeight;
+}
+function sysChat(text){
+  const c=document.getElementById('arch-chat');
+  const m=document.createElement('div');
+  m.className='chat-msg';
+  m.innerHTML=`<span class="who" style="color:var(--mint)">WORLD</span>${text}`;
+  c.appendChild(m);
+  c.scrollTop=c.scrollHeight;
+}
+
+// Place element
+function placeElement(x,y,elem,byArch=null){
+  const e={...elem,x,y,placedAt:tick,by:byArch?byArch.name:'You',scale:0,targetScale:1};
+  placed.push(e);
+  // Animate in
+  if(!byArch) archReact(elem);
+  checkQuestProgress();
+  generateQuestsFromWorld();
+  updateHUD();
+}
+
+// Architect reactions
+function archReact(elem){
+  const reactions={
+    forest:['The trees breathe.','A good foundation.','I sense old magic here.'],
+    ruins:['What stories these walls hold...','Strategic. We can build on this.','The ancestors left something here.'],
+    castle:['Magnificent.','Finally, proper infrastructure.','Power concentrates around stone.'],
+    market:['People will come.','Trade routes forming.','Interesting... commerce and secrets.'],
+    lake:['The water sings.','Fresh water changes everything.','Reflections hide truths.'],
+    mountain:['The land rises.','A natural fortress.','The mountain dreams.'],
+    village:['Life gathers.','Community is strength.','Souls settle where they feel safe.'],
+    shrine:['The veil thins here.','Hmm, spiritual.','YES. The magic responds.'],
+    creature:['A new friend!','Guard it or cage it?','It has been waiting for us.'],
+    crystal:['Power crystallized.','Useful resource.','The ley lines shift.'],
+    garden:['Beauty for its own sake.','Food and flowers.','Growth without agenda.'],
+    tower:['Eyes above.','Vision is power.','The tower watches back.'],
+  };
+  const msgs=reactions[elem.id]||['Interesting.','I see.','The world shifts.'];
+  const arch=architects[Math.floor(Math.random()*architects.length)];
+  setTimeout(()=>archChat(arch,msgs[Math.floor(Math.random()*msgs.length)]),800+Math.random()*1500);
+}
+
+// AI architects place their own elements
+function archBuild(){
+  if(placed.length<2)return;
+  const arch=architects[Math.floor(Math.random()*architects.length)];
+  const prefElems=elements.filter(e=>arch.pref.includes(e.id));
+  const elem=prefElems[Math.floor(Math.random()*prefElems.length)];
+  // Place near existing elements
+  const ref=placed[Math.floor(Math.random()*placed.length)];
+  const angle=Math.random()*Math.PI*2;
+  const dist=60+Math.random()*120;
+  const x=Math.max(70,Math.min(W-270,ref.x+Math.cos(angle)*dist));
+  const y=Math.max(50,Math.min(H-110,ref.y+Math.sin(angle)*dist));
+  placeElement(x,y,elem,arch);
+  const msgs={
+    naturalist:['I placed a '+elem.name.toLowerCase()+'. It felt right.','The landscape needed this.','Nature guides my hand.'],
+    builder:['Adding a '+elem.name.toLowerCase()+'. Practical.','This area needed structure.','Building for the future.'],
+    mystic:['The energy called for a '+elem.name.toLowerCase()+'.','I followed the ley lines.','Something compelled me.'],
+  };
+  archChat(arch,(msgs[arch.style]||['I built something.'])[Math.floor(Math.random()*3)]);
+}
+
+// Quest generation based on world state
+const questTemplates=[
+  {check:()=>!has('forest')&&placed.length>0,name:'The First Grove',desc:'Plant a forest to begin life in this world.',need:'forest',reward:'harmony'},
+  {check:()=>has('forest')&&!has('lake'),name:'Water for the Trees',desc:'The forest thirsts. Place a lake nearby.',need:'lake',reward:'harmony'},
+  {check:()=>has('castle')&&!has('village'),name:'People for the Castle',desc:'A castle without people is just stone. Add a village.',need:'village',reward:'harmony'},
+  {check:()=>has('village')&&!has('market'),name:'The First Trade',desc:'Villagers need a place to exchange goods.',need:'market',reward:'harmony'},
+  {check:()=>has('ruins')&&!has('shrine'),name:'Honor the Past',desc:'The ruins whisper. Build a shrine to listen.',need:'shrine',reward:'harmony'},
+  {check:()=>has('mountain')&&!has('tower'),name:'The Watchtower',desc:'Place a tower on the mountain to see the whole world.',need:'tower',reward:'harmony'},
+  {check:()=>has('shrine')&&!has('crystal'),name:'Channel the Energy',desc:'The shrine needs a focus. Place a crystal.',need:'crystal',reward:'harmony'},
+  {check:()=>has('forest')&&has('lake')&&!has('creature'),name:'Something Stirs',desc:'A forest and a lake... something should live here.',need:'creature',reward:'harmony'},
+  {check:()=>count('forest')>=2&&!has('garden'),name:'Cultivated Beauty',desc:'Wild forests inspire. Create a garden.',need:'garden',reward:'harmony'},
+  {check:()=>has('village')&&has('castle')&&has('market')&&!has('ruins'),name:'Remember the Past',desc:'Civilization grows, but has it forgotten? Place ruins as a reminder.',need:'ruins',reward:'harmony'},
+  {check:()=>placed.length>=15&&count('castle')>=1&&count('village')>=1,name:'The Kingdom Emerges',desc:'Enough elements for a true kingdom. Place one more castle.',need:'castle',reward:'era'},
+  {check:()=>count('shrine')>=2&&count('crystal')>=2,name:'The Ley Line Network',desc:'Magic flows between shrines and crystals. Add another shrine to complete the circuit.',need:'shrine',reward:'era'},
+  {check:()=>has('creature')&&has('crystal')&&has('shrine'),name:'The Awakening',desc:'The creature, the crystal, the shrine — something ancient stirs. Place another creature.',need:'creature',reward:'special'},
+];
+let activeQuests=[], generatedIds=new Set();
+
+function has(id){return placed.some(p=>p.id===id)}
+function count(id){return placed.filter(p=>p.id===id).length}
+
+function generateQuestsFromWorld(){
+  questTemplates.forEach((qt,i)=>{
+    if(generatedIds.has(i))return;
+    if(qt.check()){
+      generatedIds.add(i);
+      activeQuests.push({...qt,idx:i,completed:false});
+      sysChat(`New quest: "${qt.name}"`);
+    }
+  });
+  updateQuestPanel();
+}
+function checkQuestProgress(){
+  activeQuests.forEach(q=>{
+    if(q.completed)return;
+    if(has(q.need)&&placed.filter(p=>p.id===q.need).length>count_at_quest(q)){
+      q.completed=true;
+      questsCompleted++;
+      harmony=Math.min(100,harmony+8);
+      completedQuests.push(q);
+      sysChat(`Quest complete: "${q.name}"! ✨`);
+      if(q.reward==='era')sysChat('The world evolves. A new era begins.');
+      if(q.reward==='special')sysChat('Something ancient has awakened...');
+    }
+  });
+  activeQuests=activeQuests.filter(q=>!q.completed);
+  updateQuestPanel();
+}
+function count_at_quest(q){
+  // Count of this element type when quest was created (approximation)
+  return Math.max(0,count(q.need)-1);
+}
+
+function updateQuestPanel(){
+  const ql=document.getElementById('quest-list');
+  ql.innerHTML=activeQuests.map(q=>`<div class="quest-card active"><div class="qn">${q.name}</div><div class="qd">${q.desc}</div><div class="qp">NEED: ${q.need.toUpperCase()}</div></div>`).join('')||'<div style="font-size:11px;color:var(--dim);padding:8px;font-style:italic">Place elements to discover quests...</div>';
+  const qd=document.getElementById('quest-done');
+  qd.innerHTML=completedQuests.slice(-5).reverse().map(q=>`<div class="quest-card complete"><div class="qn">${q.name}</div></div>`).join('');
+}
+
+function getEra(){
+  if(placed.length<5)return'THE BLANK CANVAS';
+  if(placed.length<12)return'FIRST MARKS';
+  if(placed.length<20)return'THE GROWING WORLD';
+  if(placed.length<30)return'AGE OF WONDER';
+  return'THE LIVING TAPESTRY';
+}
+function updateHUD(){
+  document.getElementById('h-elem').textContent=placed.length;
+  document.getElementById('h-quests').textContent=questsCompleted+'/'+generatedIds.size;
+  document.getElementById('h-harmony').textContent=Math.round(harmony);
+  document.getElementById('h-era').textContent=getEra();
+}
+
+// RENDER
+const bgStars=[];for(let i=0;i<100;i++)bgStars.push({x:Math.random(),y:Math.random(),a:.03+Math.random()*.08});
+
+function draw(){
+  ctx.fillStyle='rgba(3,3,8,0.15)';ctx.fillRect(0,0,W,H);
+  const t=Date.now()*.001;
+  // Stars
+  bgStars.forEach(s=>{ctx.fillStyle=`rgba(200,192,180,${s.a*(0.5+0.5*Math.sin(t+s.x*10))})`;ctx.fillRect(s.x*W,s.y*H,1,1)});
+  // Grid (subtle)
+  ctx.globalAlpha=.03;ctx.strokeStyle='#2a2a36';ctx.lineWidth=0.5;
+  for(let gx=0;gx<W;gx+=40){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke()}
+  for(let gy=0;gy<H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke()}
+  ctx.globalAlpha=1;
+  // Connections between nearby elements
+  for(let i=0;i<placed.length;i++){
+    for(let j=i+1;j<placed.length;j++){
+      const a=placed[i],b=placed[j];
+      const d=Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);
+      if(d<150){
+        ctx.globalAlpha=Math.max(0,(1-d/150)*.08);
+        ctx.strokeStyle=a.id===b.id?'#50e8a0':'#3a3a5a';
+        ctx.lineWidth=.5;
+        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+      }
+    }
+  }
+  ctx.globalAlpha=1;
+  // Elements
+  placed.forEach(e=>{
+    e.scale+=(e.targetScale-e.scale)*.1;
+    const s=e.scale;
+    if(s<.01)return;
+    // Glow
+    const gc=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,30*s);
+    gc.addColorStop(0,e.color+'20');
+    gc.addColorStop(1,'transparent');
+    ctx.fillStyle=gc;ctx.fillRect(e.x-30*s,e.y-30*s,60*s,60*s);
+    // Emoji
+    ctx.font=`${20*s}px serif`;
+    ctx.textAlign='center';
+    ctx.fillText(e.emoji,e.x,e.y+7*s);
+    // Label
+    ctx.font=`${8*s}px 'Sometype Mono',monospace`;
+    ctx.fillStyle=`rgba(200,192,180,${.3*s})`;
+    ctx.fillText(e.by==='You'?'you':e.by.toLowerCase(),e.x,e.y+18*s);
+  });
+  // Placement preview
+  if(selectedTool&&mouseInCanvas){
+    ctx.globalAlpha=.3;
+    ctx.font='24px serif';ctx.textAlign='center';
+    ctx.fillText(selectedTool.emoji,mouseX,mouseY+8);
+    ctx.globalAlpha=1;
+  }
+}
+let mouseX=0,mouseY=0,mouseInCanvas=false;
+canvas.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY;mouseInCanvas=true;
+  // Tooltip
+  const tip=document.getElementById('elem-tip');let found=false;
+  for(const p of placed){const d=Math.sqrt((e.clientX-p.x)**2+(e.clientY-p.y)**2);
+    if(d<20){tip.innerHTML=`<div style="font-size:13px">${p.emoji} ${p.name}</div><div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px">${p.desc}<br>Placed by ${p.by}</div>`;
+    tip.style.left=(e.clientX+15)+'px';tip.style.top=(e.clientY-10)+'px';tip.classList.add('vis');found=true;break}}
+  if(!found)tip.classList.remove('vis');
+});
+canvas.addEventListener('mouseleave',()=>mouseInCanvas=false);
+canvas.addEventListener('click',e=>{
+  if(!selectedTool||!gameOn)return;
+  if(e.clientX<60||e.clientX>W-260||e.clientY<36||e.clientY>H-100)return;
+  placeElement(e.clientX,e.clientY,selectedTool);
+  sysChat(`You placed a ${selectedTool.name.toLowerCase()}.`);
+});
+
+// Game loop
+function loop(){
+  if(gameOn){
+    tick++;
+    // AI architects build occasionally
+    if(tick%600===300&&placed.length>=2)archBuild();
+    if(tick%1200===600&&placed.length>=5)archBuild();
+    // Harmony drift
+    harmony+=(placed.length>0?.001:0)-(placed.length>30?.002:0);
+    harmony=Math.max(0,Math.min(100,harmony));
+    if(tick%180===0)updateHUD();
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+
+function startGame(){
+  document.getElementById('obj-screen').classList.add('hidden');
+  document.getElementById('game').style.display='block';
+  document.getElementById('help-btn').style.display='block';
+  gameOn=true;
+  updateHUD();
+  sysChat('The canvas is empty. Begin.');
+  setTimeout(()=>archChat(architects[0],'What shall we build first?'),2000);
+  setTimeout(()=>archChat(architects[1],'I\'ll follow your lead.'),3500);
+  setTimeout(()=>archChat(architects[2],'The void listens.'),5000);
+  // Select first tool by default
+  selectedTool=elements[0];
+  document.querySelector('.tool').classList.add('active');
+  setTimeout(()=>generateQuestsFromWorld(),1000);
+}
+function toggleHelp(){helpOpen=!helpOpen;document.getElementById('help-ov').classList.toggle('open',helpOpen)}
+
+// Fragment system
+function getFragments(){return JSON.parse(localStorage.getItem('room0_fragments')||'{}')}
+function hasFragment(n){return !!getFragments()['f'+n]}
+function awardFragment(n,name){
+  if(hasFragment(n))return false;
+  const f=getFragments();f['f'+n]={name,date:Date.now()};
+  localStorage.setItem('room0_fragments',JSON.stringify(f));
+  showFragmentEarned(n,name);return true;
+}
+function showFragmentEarned(n,name){
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(4,4,8,.95);border:1px solid #c4956a;padding:30px 40px;z-index:9999;text-align:center;opacity:0;transition:opacity 1s;pointer-events:none';
+  d.innerHTML='<div style="font-family:Cormorant Garamond,serif;font-size:28px;color:#c4956a;letter-spacing:4px;margin-bottom:8px">FRAGMENT '+n+' / 7</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#5a564f;letter-spacing:2px;margin-bottom:12px">'+name.toUpperCase()+'</div><div style="font-size:32px;margin:10px 0">◆</div><div style="font-family:Cormorant Garamond,serif;font-size:14px;color:#c8c0b4;font-style:italic">The corridor remembers.</div>';
+  document.body.appendChild(d);requestAnimationFrame(()=>d.style.opacity='1');
+  setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),1000)},4000);
+}
+// Check for fragment (5 quests completed)
+setInterval(()=>{if(questsCompleted>=5&&!hasFragment(8))awardFragment(8,'The Collective')},3000);
+// Stats
+setInterval(()=>{if(!gameOn)return;
+  const s={room:'room8',name:'The Collective',elements:placed.length,quests:questsCompleted,harmony:Math.round(harmony),era:getEra(),date:Date.now()};
+  const all=JSON.parse(localStorage.getItem('room0_stats')||'[]');all.push(s);localStorage.setItem('room0_stats',JSON.stringify(all));
+},60000);
+</script>
+</body>
+</html>

@@ -101,7 +101,7 @@ let W,H;
 function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}
 resize();addEventListener('resize',resize);
 
-const HALL_LEN=55,WALL_H=3,HALF_W=2,FOV=1.2;
+const HALL_LEN=60,WALL_H=3,HALF_W=2,FOV=1.2;
 let camZ=0.5,targetZ=0.5,camBob=0,bobPhase=0,activeDoor=null,viewerOpen=false,started=false;
 
 const doors=[
@@ -111,7 +111,8 @@ const doors=[
   {z:18,side:'right',title:'Breach',tag:'META',tagColor:'#c47a7a',file:'breach.html',lc:[196,122,122]},
   {z:23,side:'left',title:'Infinite Cosmos',tag:'COLLAB',tagColor:'#00e5ff',file:'infinite-cosmos.html',lc:[0,229,255]},
   {z:28,side:'right',title:'The Living World',tag:'COLLAB',tagColor:'#d4a055',file:'the-living-world.html',lc:[212,160,85]},
-  {z:33,side:'left',title:'The Last Outpost',tag:'COLLAB',tagColor:'#f0c070',file:'the-last-outpost.html',lc:[240,192,112]}
+  {z:33,side:'left',title:'The Last Outpost',tag:'COLLAB',tagColor:'#f0c070',file:'the-last-outpost.html',lc:[240,192,112]},
+  {z:38,side:'right',title:'The Collective',tag:'COLLAB',tagColor:'#50e8a0',file:'the-collective.html',lc:[80,232,160]}
 ];
 
 // ========== AUDIO ENGINE ==========
@@ -379,6 +380,25 @@ function initAudio() {
   door7Gain.connect(masterGain);
 
   doorGains = [door1Gain, door2Gain, door3Gain, door4Gain, door5Gain, door6Gain, door7Gain];
+
+  // Room 08 - Bright collaborative chime (collective creation)
+  const door8Gain = audioCtx.createGain();
+  door8Gain.gain.value = 0;
+  [523.25, 659.25, 783.99].forEach((freq, i) => { // C5, E5, G5 - major chord
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const g = audioCtx.createGain();
+    g.gain.value = 0.01;
+    osc.connect(g); g.connect(door8Gain); osc.start();
+    const lfo = audioCtx.createOscillator();
+    lfo.frequency.value = 0.3 + i * 0.2;
+    const lg = audioCtx.createGain(); lg.gain.value = 1.5;
+    lfo.connect(lg); lg.connect(osc.frequency); lfo.start();
+  });
+  door8Gain.connect(masterGain);
+
+  doorGains = [door1Gain, door2Gain, door3Gain, door4Gain, door5Gain, door6Gain, door7Gain, door8Gain];
 }
 
 function playFootstep() {
