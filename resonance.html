@@ -97,7 +97,7 @@
     An instrument that plays itself in D minor.<br>Click to drop notes. Hover to bend frequencies.<br>Sound as a space to inhabit.
   </div>
   <div style="font-family:'Sometype Mono',monospace;font-size:10px;color:#2a2a30;letter-spacing:1px;line-height:2.5;text-align:center;margin-bottom:30px">
-    CLICK ANYWHERE — drop a note<br>MOVE MOUSE — bend the wave field<br>KEYS A-S-D-F-G-H-J-K-L — play notes<br>♪ SOUND REQUIRED
+    CLICK ANYWHERE — drop a note<br>MOVE MOUSE — bend the wave field<br>KEYS A-S-D-F-G-H-J-K-L — play notes (labels shown at bottom)<br>◆ PLAY THE MELODY A-D-G-A-D TO FIND THE FRAGMENT<br>♪ SOUND REQUIRED
   </div>
   <button onclick="document.getElementById('obj-screen').style.opacity='0';document.getElementById('obj-screen').style.pointerEvents='none'" style="font-family:'Cormorant Garamond',serif;font-size:15px;color:#7ac49a;border:1px solid #7ac49a;background:none;padding:12px 36px;cursor:pointer;letter-spacing:3px;transition:all .4s">BEGIN</button>
 </div>
@@ -434,6 +434,44 @@
     ctx.fillStyle = 'rgba(122, 196, 154, 0.15)';
     ctx.fill();
 
+    // Key labels at bottom
+    const keyLabels = ['A','S','D','F','G','H','J','K','L'];
+    const noteLabels = ['D','E','F','A','B♭','D','E','F','A'];
+    ctx.textAlign = 'center';
+    for (let ki = 0; ki < 9; ki++) {
+      const kx = (ki / 9) * W + W/18;
+      const ky = H - 20;
+      const isActive = lastKeyHit === ki && Date.now() - lastKeyTime < 400;
+      ctx.font = `${isActive ? 14 : 11}px 'Sometype Mono', monospace`;
+      ctx.fillStyle = isActive ? 'rgba(196,149,106,0.8)' : 'rgba(122,196,154,0.2)';
+      ctx.fillText(keyLabels[ki], kx, ky);
+      ctx.font = '8px "Sometype Mono", monospace';
+      ctx.fillStyle = isActive ? 'rgba(196,149,106,0.5)' : 'rgba(122,196,154,0.1)';
+      ctx.fillText(noteLabels[ki], kx, ky + 12);
+    }
+
+    // Melody progress indicator
+    if (typeof melodyProgress !== 'undefined' && melodyProgress.length > 0) {
+      const melodyNotes = ['A(D)','D(F)','G(A)','A(D)','D(F)'];
+      const mp = melodyProgress.length;
+      ctx.textAlign = 'center';
+      ctx.font = '10px "Sometype Mono", monospace';
+      for (let mi = 0; mi < 5; mi++) {
+        const mx = W/2 - 60 + mi * 30;
+        const my = 30;
+        if (mi < mp) {
+          ctx.fillStyle = 'rgba(196,149,106,0.7)';
+          ctx.fillText('◆', mx, my);
+        } else {
+          ctx.fillStyle = 'rgba(90,86,79,0.3)';
+          ctx.fillText('◇', mx, my);
+        }
+      }
+      ctx.fillStyle = 'rgba(196,149,106,0.3)';
+      ctx.font = '8px "Sometype Mono", monospace';
+      ctx.fillText('MELODY', W/2, 45);
+    }
+
     requestAnimationFrame(loop);
   }
   loop();
@@ -465,10 +503,13 @@
 
   // Keyboard — play notes with keys
   const keyMap = { a: 0, s: 1, d: 2, f: 3, g: 4, h: 5, j: 6, k: 7, l: 8 };
+  let lastKeyHit = -1, lastKeyTime = 0;
   document.addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
     if (k in keyMap) {
       initAudio();
+      lastKeyHit = keyMap[k];
+      lastKeyTime = Date.now();
       const freq = scale[keyMap[k] + 3]; // Middle range
       const x = (keyMap[k] / 9) * W;
       const y = H * 0.5 + (Math.random() - 0.5) * 100;
@@ -517,7 +558,7 @@
   document.body.appendChild(helpBtn);
   const helpOv = document.createElement('div');
   helpOv.style.cssText = 'position:fixed;inset:0;background:rgba(4,4,8,.92);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s';
-  helpOv.innerHTML = '<div style="max-width:400px;text-align:center;padding:40px"><h2 style="font-family:Cormorant Garamond,serif;font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:#7ac49a">HOW TO PLAY</h2><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">CLICK — drop a note into the void</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">MOVE MOUSE — bend wave frequencies nearby</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">KEYS A-S-D-F-G-H-J-K-L — play D minor scale</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">Just listen. There is no wrong way to play.</div><button onclick="this.parentElement.parentElement.style.opacity=0;this.parentElement.parentElement.style.pointerEvents=\'none\'" style="font-family:Cormorant Garamond,serif;font-size:14px;color:#7ac49a;background:none;border:1px solid #7ac49a;padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s">GOT IT</button></div>';
+  helpOv.innerHTML = '<div style="max-width:400px;text-align:center;padding:40px"><h2 style="font-family:Cormorant Garamond,serif;font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:#7ac49a">HOW TO PLAY</h2><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">CLICK — drop a note into the void</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">MOVE MOUSE — bend wave frequencies nearby</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">KEYS A-S-D-F-G-H-J-K-L — play D minor scale<br>Key labels shown at bottom of screen</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">Just listen. There is no wrong way to play.</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:rgba(196,149,106,.5);margin:8px 0;padding:8px;border:1px solid rgba(196,149,106,.15);line-height:1.8">◆ FRAGMENT — play the melody A D G A D<br>Watch the diamonds at the top light up</div><button onclick="this.parentElement.parentElement.style.opacity=0;this.parentElement.parentElement.style.pointerEvents=\'none\'" style="font-family:Cormorant Garamond,serif;font-size:14px;color:#7ac49a;background:none;border:1px solid #7ac49a;padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s">GOT IT</button></div>';
   document.body.appendChild(helpOv);
   helpBtn.onclick = () => { helpOv.style.opacity = helpOv.style.opacity === '1' ? '0' : '1'; helpOv.style.pointerEvents = helpOv.style.pointerEvents === 'auto' ? 'none' : 'auto'; };
 

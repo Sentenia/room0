@@ -88,7 +88,7 @@
 </div>
 <div id="hud-bottom">DRAG: CREATE · SCROLL: ZOOM<br>RIGHT-DRAG: PAN · M: MISSIONS</div>
 <button id="help-btn" onclick="toggleHelp()">? HELP</button>
-<div id="help-overlay"><div id="help-box">
+<div id="help-overlay" onclick="if(event.target===this)toggleHelp()"><div id="help-box">
   <h2>HOW TO PLAY</h2>
   <div class="mech">🖱️ DRAG — paint matter into the void</div>
   <div class="mech">⭐ MATTER CLUSTERS — when enough gathers, a star is born</div>
@@ -100,7 +100,10 @@
   <div class="mech">🎲 POWER 2 — Probability Hack: inject chaos</div>
   <div class="mech">💥 POWER 3 — Big Glitch: explosive shockwave</div>
   <div class="mech" style="color:var(--dim)">Complete missions to unlock each power</div>
+  <div class="mech" style="color:var(--cyan);border-color:rgba(0,229,255,.2)">🧩 MISSIONS — shown at top center. Paint lots of matter to form stars. Keep civilizations alive by not destroying their star.</div>
+  <div class="mech" style="color:rgba(196,149,106,.5);border-color:rgba(196,149,106,.15)">◆ FRAGMENT — complete all 5 missions to earn it</div>
   <button onclick="toggleHelp()">GOT IT</button>
+  <div style="font-size:9px;color:#2a2a30;margin-top:8px;letter-spacing:1px">CLICK OUTSIDE OR PRESS ESC TO CLOSE</div>
 </div></div>
 <div id="seed-display"></div>
 <script>
