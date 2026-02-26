@@ -3,829 +3,332 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Living World — GPT × Claude</title>
+<title>The Living World — Room 06</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Sometype+Mono:wght@400;500&display=swap');
-  :root{
-    --void:#050508;--surface:#0a0a10;--panel:#0d0d14;
-    --gold:#d4a055;--copper:#c47a5a;--jade:#55b88a;--sky:#5aa0d4;--rose:#d45a6e;--violet:#9a6ed4;
-    --text:#c8c0b4;--dim:#5a564f;--faint:#1a1a22;--glow:rgba(212,160,85,.15);
-    --font:'Cormorant Garamond',serif;--mono:'Sometype Mono',monospace
-  }
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Sometype+Mono:wght@400;500&display=swap');
+  :root{--void:#040408;--mint:#7ac49a;--gold:#c4956a;--rose:#c47a8a;--sky:#6ab4c4;--violet:#8a7ac4;--text:#c8c0b4;--dim:#5a564f;--faint:#16161e;--font:'Cormorant Garamond',serif;--mono:'Sometype Mono',monospace}
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--void);color:var(--text);font-family:var(--font);overflow:hidden;height:100vh;width:100vw;user-select:none}
+  canvas{position:fixed;inset:0;z-index:1}
   #grain{position:fixed;inset:0;pointer-events:none;z-index:10000;opacity:.02;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-
-  /* OBJECTIVE SCREEN */
-  #obj-screen{position:fixed;inset:0;background:var(--void);z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1.5s}
-  #obj-screen.hidden{opacity:0;pointer-events:none}
-  #obj-screen h1{font-size:40px;font-weight:300;letter-spacing:10px;margin-bottom:6px}
-  #obj-screen .collab{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:3px;margin-bottom:28px}
-  #obj-screen .goal{font-size:17px;font-weight:300;line-height:2;text-align:center;max-width:440px;margin-bottom:10px}
-  #obj-screen .rules{font-family:var(--mono);font-size:10px;color:#2a2a30;letter-spacing:1px;line-height:2.5;text-align:center;margin-bottom:28px}
-  #obj-screen button{font-family:var(--font);font-size:15px;color:var(--gold);border:1px solid var(--gold);background:none;padding:12px 36px;cursor:pointer;letter-spacing:3px;transition:all .4s}
-  #obj-screen button:hover{background:var(--gold);color:var(--void)}
-
-  /* LAYOUT */
-  #game{display:none;width:100vw;height:100vh;position:relative}
-  #world-canvas{position:absolute;inset:0}
-
-  /* TOP BAR */
-  #topbar{position:fixed;top:0;left:0;right:0;height:40px;background:rgba(5,5,8,.85);border-bottom:1px solid var(--faint);display:flex;align-items:center;padding:0 16px;z-index:200;backdrop-filter:blur(6px)}
-  #topbar .era{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:2px}
-  #topbar .year{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;margin-left:16px}
-  #topbar .weather-icon{margin-left:auto;font-size:14px}
-  #topbar .pop{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;margin-left:12px}
-  #speed-controls{margin-left:12px;display:flex;gap:4px}
-  .spd-btn{font-family:var(--mono);font-size:9px;color:var(--dim);background:none;border:1px solid var(--faint);padding:2px 8px;cursor:pointer;letter-spacing:1px;transition:all .3s}
-  .spd-btn.active{color:var(--gold);border-color:var(--gold)}
-  .spd-btn:hover{border-color:var(--dim)}
-
-  /* SIDE PANEL */
-  #panel{position:fixed;top:40px;right:0;width:300px;bottom:0;background:rgba(10,10,16,.92);border-left:1px solid var(--faint);z-index:150;overflow-y:auto;backdrop-filter:blur(6px);transition:transform .4s}
-  #panel.hidden{transform:translateX(100%)}
-  #panel::-webkit-scrollbar{width:3px}
-  #panel::-webkit-scrollbar-thumb{background:var(--faint)}
-  .panel-section{padding:16px;border-bottom:1px solid var(--faint)}
-  .panel-title{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:10px}
-  .npc-card{background:var(--surface);border:1px solid var(--faint);padding:10px;margin-bottom:6px;cursor:pointer;transition:all .3s}
-  .npc-card:hover{border-color:var(--gold)}
-  .npc-card.selected{border-color:var(--gold);box-shadow:0 0 12px var(--glow)}
-  .npc-name{font-size:15px;font-weight:400;letter-spacing:1px}
-  .npc-role{font-family:var(--mono);font-size:9px;letter-spacing:1px;margin-top:2px}
-  .npc-mood{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px}
-  .stat-bar{height:3px;background:var(--faint);margin-top:4px;border-radius:1px;overflow:hidden}
-  .stat-fill{height:100%;transition:width .8s ease}
-  .rel-tag{display:inline-block;font-family:var(--mono);font-size:8px;letter-spacing:1px;padding:1px 6px;margin:2px 2px 0 0;border:1px solid}
-
-  /* EVENT LOG */
-  #log{position:fixed;bottom:0;left:0;right:300px;height:140px;background:rgba(5,5,8,.9);border-top:1px solid var(--faint);z-index:200;overflow-y:auto;padding:10px 16px;backdrop-filter:blur(6px)}
-  #log::-webkit-scrollbar{width:3px}
-  #log::-webkit-scrollbar-thumb{background:var(--faint)}
-  .log-entry{font-size:13px;line-height:1.8;color:var(--dim);border-left:2px solid var(--faint);padding-left:10px;margin-bottom:4px;transition:all .4s}
-  .log-entry.major{color:var(--text);border-color:var(--gold)}
-  .log-entry.conflict{border-color:var(--rose)}
-  .log-entry.nature{border-color:var(--jade)}
-  .log-entry.trade{border-color:var(--copper)}
-  .log-entry .log-year{font-family:var(--mono);font-size:9px;color:#2a2a30;letter-spacing:1px;margin-right:8px}
-
-  /* CHOICE MODAL */
-  #choice-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--gold);padding:28px;max-width:400px;width:90%;z-index:3000;opacity:0;pointer-events:none;transition:opacity .5s}
-  #choice-modal.open{opacity:1;pointer-events:auto}
-  #choice-title{font-size:20px;font-weight:400;letter-spacing:2px;margin-bottom:6px}
-  #choice-desc{font-size:13px;color:var(--dim);line-height:1.8;margin-bottom:16px}
-  .choice-btn{display:block;width:100%;text-align:left;font-family:var(--font);font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--faint);padding:10px 14px;margin-bottom:6px;cursor:pointer;transition:all .3s;letter-spacing:.5px}
-  .choice-btn:hover{border-color:var(--gold);padding-left:20px}
-  .choice-btn .consequence{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:3px;display:block}
-
-  /* HELP */
-  #help-btn{position:fixed;top:48px;right:308px;z-index:200;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;background:none;border:1px solid var(--faint);padding:4px 10px;cursor:pointer;transition:all .3s}
-  #help-btn:hover{border-color:var(--gold);color:var(--gold)}
-  #help-ov{position:fixed;inset:0;background:rgba(5,5,8,.94);z-index:4000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s}
+  #obj{position:fixed;inset:0;background:var(--void);z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1.5s}
+  #obj.h{opacity:0;pointer-events:none}
+  #obj h1{font-size:32px;font-weight:300;letter-spacing:6px;margin-bottom:6px;color:var(--mint)}
+  #obj .sub{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:3px;margin-bottom:20px}
+  #obj .desc{font-size:16px;font-weight:300;line-height:2;text-align:center;max-width:420px;margin-bottom:24px}
+  #obj button{font-family:var(--font);font-size:15px;color:var(--mint);border:1px solid var(--mint);background:none;padding:12px 36px;cursor:pointer;letter-spacing:3px;transition:all .4s}
+  #obj button:hover{background:var(--mint);color:var(--void)}
+  #hud{position:fixed;top:0;left:0;right:0;height:32px;background:rgba(4,4,8,.85);border-bottom:1px solid var(--faint);z-index:200;display:flex;align-items:center;padding:0 14px;font-family:var(--mono);font-size:10px;backdrop-filter:blur(4px);gap:16px}
+  .hi{color:var(--dim);letter-spacing:1px}.hv{color:var(--mint)}
+  #log{position:fixed;top:32px;right:0;width:220px;bottom:0;background:rgba(4,4,8,.9);border-left:1px solid var(--faint);z-index:200;overflow-y:auto;padding:10px;backdrop-filter:blur(4px)}
+  #log::-webkit-scrollbar{width:3px}#log::-webkit-scrollbar-thumb{background:var(--faint)}
+  .le{font-size:11px;line-height:1.5;margin-bottom:5px;padding:5px 7px;border-left:2px solid var(--faint);opacity:0;animation:fadeIn .5s forwards}
+  .le.era{border-color:var(--gold);font-size:13px}
+  .le.build{border-color:var(--sky)}
+  .le.war{border-color:var(--rose)}
+  .le.nature{border-color:var(--mint)}
+  @keyframes fadeIn{to{opacity:1}}
+  #sel{position:fixed;bottom:0;left:0;right:220px;height:55px;background:rgba(4,4,8,.9);border-top:1px solid var(--faint);z-index:200;display:none;padding:8px 14px;backdrop-filter:blur(4px);align-items:center}
+  #sel.vis{display:flex}
+  #speed{position:fixed;top:40px;left:14px;z-index:200;display:flex;gap:4px}
+  .sb{font-family:var(--mono);font-size:10px;padding:3px 8px;border:1px solid var(--faint);background:rgba(4,4,8,.85);color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .3s}
+  .sb:hover,.sb.on{border-color:var(--mint);color:var(--mint)}
+  #help-btn{position:fixed;top:40px;right:228px;z-index:200;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;background:none;border:1px solid var(--faint);padding:3px 8px;cursor:pointer}
+  #help-btn:hover{border-color:var(--mint);color:var(--mint)}
+  #help-ov{position:fixed;inset:0;background:rgba(3,3,8,.94);z-index:4000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s}
   #help-ov.open{opacity:1;pointer-events:auto}
-  #help-box{max-width:440px;text-align:center;padding:40px}
-  #help-box h2{font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:var(--gold)}
-  .hmech{font-family:var(--mono);font-size:11px;color:var(--text);letter-spacing:1px;margin:8px 0;padding:8px;border:1px solid var(--faint);line-height:1.8;text-align:left}
-  #help-box button{font-family:var(--font);font-size:14px;color:var(--gold);background:none;border:1px solid var(--gold);padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s}
-  #help-box button:hover{background:var(--gold);color:var(--void)}
-
-  /* NPC TOOLTIP */
-  #tooltip{position:fixed;background:var(--panel);border:1px solid var(--gold);padding:10px 14px;z-index:300;pointer-events:none;opacity:0;transition:opacity .3s;max-width:200px}
-  #tooltip.visible{opacity:1}
-  #tooltip .tt-name{font-size:14px;letter-spacing:1px}
-  #tooltip .tt-info{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:4px;line-height:1.8}
+  .hb{max-width:440px;text-align:center;padding:40px}
+  .hb h2{font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:16px;color:var(--mint)}
+  .hm{font-family:var(--mono);font-size:11px;color:var(--text);margin:6px 0;padding:6px;border:1px solid var(--faint);line-height:1.7;text-align:left}
+  .hb button{font-family:var(--font);font-size:14px;color:var(--mint);background:none;border:1px solid var(--mint);padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:16px}
 </style>
 </head>
 <body>
 <div id="grain"></div>
-
-<!-- OBJECTIVE SCREEN -->
-<div id="obj-screen">
+<div id="obj">
   <h1>THE LIVING WORLD</h1>
-  <div class="collab">GPT'S VISION × CLAUDE'S CRAFT</div>
-  <div class="goal">
-    A world that breathes. NPCs with ambitions, rivalries, and real relationships.
-    Weather shapes ecosystems. Economies rise and crash.
-    Every choice you make ripples through history.
-  </div>
-  <div class="rules">
-    WATCH THE WORLD EVOLVE IN REAL TIME<br>
-    CLICK NPCS TO VIEW THEIR STORIES<br>
-    MAKE CHOICES WHEN EVENTS ARISE<br>
-    YOUR DECISIONS CHANGE EVERYTHING
-  </div>
-  <button onclick="startGame()">ENTER THE WORLD</button>
+  <div class="sub">ROOM 06</div>
+  <div class="desc">Watch a civilization rise from nothing.<br>From the first campfire to towering cities.<br>Every tree felled, every stone laid, every life lived.</div>
+  <button onclick="begin()">OBSERVE</button>
 </div>
-
-<!-- HELP -->
-<button id="help-btn" onclick="toggleHelp()" style="display:none">? HELP</button>
-<div id="help-ov">
-  <div id="help-box">
-    <h2>HOW TO PLAY</h2>
-    <div class="hmech">🌍 The world simulates itself — weather, ecosystems, economies, and NPCs all run in real time</div>
-    <div class="hmech">👤 Click NPC dots on the map or their cards in the panel to see their story, relationships, and ambitions</div>
-    <div class="hmech">⚡ Events will appear as choices — your decisions cause ripple effects across the world</div>
-    <div class="hmech">📜 The log at the bottom records history as it unfolds</div>
-    <div class="hmech">⏩ Use speed controls (1x, 2x, 5x) to fast-forward time</div>
-    <div class="hmech">🌧️ Weather affects crops → affects economy → affects NPC mood → affects politics</div>
-    <button onclick="toggleHelp()">GOT IT</button>
-  </div>
+<div id="hud" style="display:none">
+  <span id="era-label" style="color:var(--gold);letter-spacing:2px;font-size:11px">YEAR 0</span>
+  <span class="hi">POP: <span class="hv" id="h-pop">0</span></span>
+  <span class="hi">WOOD: <span class="hv" id="h-wood">0</span></span>
+  <span class="hi">STONE: <span class="hv" id="h-stone">0</span></span>
+  <span class="hi">FOOD: <span class="hv" id="h-food">0</span></span>
+  <span class="hi" style="margin-left:auto"><span class="hv" id="h-speed">1×</span></span>
 </div>
-
-<!-- GAME -->
-<div id="game">
-  <canvas id="world-canvas"></canvas>
-  <div id="topbar">
-    <span class="era" id="era">THE DAWN</span>
-    <span class="year" id="year">Year 1</span>
-    <span class="weather-icon" id="weather-icon">☀️</span>
-    <span class="pop" id="pop">Pop: 0</span>
-    <div id="speed-controls">
-      <button class="spd-btn active" onclick="setSpeed(1)">1×</button>
-      <button class="spd-btn" onclick="setSpeed(2)">2×</button>
-      <button class="spd-btn" onclick="setSpeed(5)">5×</button>
-    </div>
-  </div>
-  <div id="panel">
-    <div class="panel-section" id="selected-npc" style="display:none"></div>
-    <div class="panel-section"><div class="panel-title">INHABITANTS</div><div id="npc-list"></div></div>
-    <div class="panel-section"><div class="panel-title">ECONOMY</div><div id="econ-info"></div></div>
-    <div class="panel-section"><div class="panel-title">ECOSYSTEM</div><div id="eco-info"></div></div>
-  </div>
-  <div id="log"></div>
-  <div id="choice-modal"><div id="choice-title"></div><div id="choice-desc"></div><div id="choice-options"></div></div>
-  <div id="tooltip"><div class="tt-name" id="tt-name"></div><div class="tt-info" id="tt-info"></div></div>
+<div id="log" style="display:none"></div>
+<div id="sel"></div>
+<div id="speed" style="display:none">
+  <div class="sb on" onclick="setSpeed(1)">1×</div>
+  <div class="sb" onclick="setSpeed(3)">3×</div>
+  <div class="sb" onclick="setSpeed(8)">8×</div>
 </div>
-
+<button id="help-btn" style="display:none" onclick="toggleHelp()">? HELP</button>
+<div id="help-ov" onclick="if(event.target===this)toggleHelp()"><div class="hb">
+  <h2>THE LIVING WORLD</h2>
+  <div class="hm">👁️ WATCH the world evolve from wilderness to civilization</div>
+  <div class="hm">🖱️ CLICK on people to see who they are</div>
+  <div class="hm">⏩ SPEED controls top-left (1×, 3×, 8×)</div>
+  <div class="hm">🌲 Trees chopped · Stone mined · Buildings erected</div>
+  <div class="hm">🏘️ Huts → Houses → Manors as the world grows</div>
+  <div class="hm" style="color:rgba(196,149,106,.5);border-color:rgba(196,149,106,.15)">◆ FRAGMENT — reach Year 100</div>
+  <button onclick="toggleHelp()">GOT IT</button>
+</div></div>
+<canvas></canvas>
 <script>
-// =========== WORLD ENGINE ===========
-const canvas = document.getElementById('world-canvas');
-const ctx = canvas.getContext('2d');
-let W, H;
-function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
-resize(); addEventListener('resize', resize);
+const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d');
+let W,H;function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}resize();addEventListener('resize',resize);
+let running=false,tick=0,speed=1,year=0,helpOpen=false;
+let wood=20,stone=5,food=30;
+const GY=()=>H*0.68;
+const trees=[],stumps=[],rocks=[],buildings=[],particles=[],npcs=[];
+let selectedNPC=null,npcId=0;
 
-let gameStarted = false, helpOpen = false, speed = 1, year = 0, tick = 0;
-let selectedNPC = null;
+function genWorld(){
+  for(let i=0;i<55;i++)trees.push({x:30+Math.random()*(W-270),y:GY()+Math.random()*90-10,h:20+Math.random()*25,w:8+Math.random()*10,alive:true,chopping:false,chopProg:0,sway:Math.random()*6.28});
+  for(let i=0;i<18;i++)rocks.push({x:50+Math.random()*(W-290),y:GY()+10+Math.random()*70,sz:5+Math.random()*9,ore:Math.random()>.65,mined:false,mineProg:0});
+  for(let i=0;i<5;i++)spawnNPC(W*0.4+Math.random()*80,GY()+Math.random()*25);
+}
 
-// NAMES
-const firstNames = ['Arin','Brynn','Cael','Dara','Elan','Faye','Gira','Hael','Isla','Jora','Kael','Lira','Mira','Nael','Orin','Pria','Rael','Saya','Tira','Vael','Wren','Yael','Zara','Kai','Fen','Sol','Ash','Elm','Oak','Rue'];
-const lastNames = ['Stonebrook','Ashfield','Thornwall','Ironvale','Goldmere','Silverwind','Darkholm','Brightwater','Redthorn','Whitepeak','Hollowmere','Deepwell','Highcrest','Lowmoor','Starfall','Duskwood','Frostglen','Sunvale','Misthollow','Ravenhill'];
-const roles = ['Farmer','Merchant','Smith','Scholar','Hunter','Healer','Elder','Bard','Guard','Mystic','Fisher','Baker','Builder','Weaver','Miner'];
-const traits = ['ambitious','cautious','generous','greedy','kind','cruel','wise','reckless','loyal','treacherous','brave','cowardly','charismatic','withdrawn','patient','impulsive'];
-const ambitions = ['become leader','amass wealth','find true love','discover ancient secrets','protect the village','expand trade routes','master their craft','start a family','avenge a wrong','build a monument','overthrow the elder','unite the factions'];
+function spawnNPC(x,y){
+  const names=['Ada','Bren','Cael','Dara','Elio','Finn','Gaia','Holt','Iris','Juno','Kael','Lyra','Mira','Nox','Orin','Pax','Ren','Sol','Tara','Vex','Wren','Zara','Ash','Beck'];
+  const n={id:npcId++,x,y,name:names[Math.floor(Math.random()*names.length)],role:year<8?'gatherer':assignRole(),age:14+Math.floor(Math.random()*22),tx:x,ty:y,speed:.25+Math.random()*.2,action:'idle',actionTimer:0,walkPhase:Math.random()*6.28,color:'hsl('+Math.random()*360+',28%,55%)',hatClr:'hsl('+Math.random()*360+',22%,42%)',born:year,alive:true,target:null,nextAction:'idle'};
+  npcs.push(n);return n;
+}
+function assignRole(){const r=['gatherer','woodcutter','miner','builder','farmer','hunter'];if(year<12)return r[Math.floor(Math.random()*3)];if(year<35)return r[Math.floor(Math.random()*5)];return r[Math.floor(Math.random()*r.length)]}
+function addBuilding(x,y,type){const b={x,y,type,level:1,built:0,maxBuilt:100};buildings.push(b);logEvent('A '+type+' is being built.','build');return b}
+function upgradeBuilding(b){if(b.level>=3)return;b.level++;const nm={hut:['Hut','House','Manor'],farm:['Field','Farm','Granary'],mine:['Pit','Mine','Deep Mine'],temple:['Shrine','Temple','Cathedral'],market:['Stall','Market','Trade Hall'],wall:['Palisade','Wall','Fortress']};logEvent((nm[b.type]||[b.type])[b.level-1]+' upgraded!','build')}
 
-// WORLD STATE
-const world = {
-  weather: 'clear', temperature: 65, rainfall: 40, season: 'spring',
-  crops: 70, wildlife: 60, timber: 80, ore: 50,
-  prosperity: 50, stability: 70, culture: 30,
-  buildings: ['village hall','granary','well'],
-  factions: [
-    { name: 'Traditionalists', power: 50, color: '#c47a5a' },
-    { name: 'Progressives', power: 35, color: '#5aa0d4' },
-    { name: 'Merchants Guild', power: 15, color: '#d4a055' }
-  ],
-  history: [],
-  choicesPending: 0
-};
+// ===== DRAWING =====
+function drawSky(){
+  let t1,t2;
+  if(year<10){t1='#050510';t2='#081018'}
+  else if(year<30){t1='#080818';t2='#0e1828'}
+  else if(year<55){t1='#0e1430';t2='#162840'}
+  else if(year<80){t1='#142040';t2='#1e3050'}
+  else{t1='#182848';t2='#243858'}
+  const g=ctx.createLinearGradient(0,0,0,GY());g.addColorStop(0,t1);g.addColorStop(1,t2);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,GY());
+  const sa=Math.max(.02,.14-year*.0012);ctx.fillStyle='rgba(200,200,220,'+sa+')';
+  for(let i=0;i<60;i++)ctx.fillRect((Math.sin(i*127.1)*.5+.5)*W,(Math.cos(i*311.7)*.4+.2)*GY(),1,1);
+  if(year<50){ctx.fillStyle='rgba(200,200,220,'+(.04-year*.0006)+')';ctx.beginPath();ctx.arc(W*.8,GY()*.2,12,0,6.28);ctx.fill()}
+}
 
-const weathers = [
-  { name: 'clear', icon: '☀️', cropMod: 1.0, moodMod: 1.05, desc: 'Clear skies' },
-  { name: 'rain', icon: '🌧️', cropMod: 1.3, moodMod: 0.95, desc: 'Gentle rain' },
-  { name: 'storm', icon: '⛈️', cropMod: 0.7, moodMod: 0.85, desc: 'Fierce storms' },
-  { name: 'drought', icon: '🏜️', cropMod: 0.4, moodMod: 0.8, desc: 'Scorching drought' },
-  { name: 'snow', icon: '❄️', cropMod: 0.2, moodMod: 0.9, desc: 'Heavy snowfall' },
-  { name: 'fog', icon: '🌫️', cropMod: 0.9, moodMod: 0.92, desc: 'Dense fog' },
-];
-const seasons = ['spring','summer','autumn','winter'];
+function drawGround(){
+  const gy=GY();
+  let gc=year<15?'#1a2a16':year<40?'#1e2818':year<70?'#222a1a':'#262a1e';
+  const g=ctx.createLinearGradient(0,gy,0,H);g.addColorStop(0,gc);g.addColorStop(1,'#080808');
+  ctx.fillStyle=g;ctx.fillRect(0,gy,W,H-gy);
+  const cnt=Math.max(5,35-Math.floor(year*.3));ctx.strokeStyle='rgba(55,95,45,.12)';ctx.lineWidth=.8;
+  for(let i=0;i<cnt;i++){const gx=(Math.sin(i*73.1)*.5+.5)*(W-260),gy2=gy+2+(Math.cos(i*41.3)*.5+.5)*25;
+    ctx.beginPath();ctx.moveTo(gx,gy2);ctx.lineTo(gx-3,gy2-6-Math.sin(tick*.02+i)*1.5);ctx.stroke()}
+}
 
-// NPC SYSTEM
-const npcs = [];
-class NPC {
-  constructor() {
-    this.id = Math.random().toString(36).slice(2,8);
-    this.first = firstNames[Math.floor(Math.random()*firstNames.length)];
-    this.last = lastNames[Math.floor(Math.random()*lastNames.length)];
-    this.name = this.first + ' ' + this.last;
-    this.role = roles[Math.floor(Math.random()*roles.length)];
-    this.trait1 = traits[Math.floor(Math.random()*traits.length)];
-    this.trait2 = traits[Math.floor(Math.random()*traits.length)];
-    while(this.trait2===this.trait1) this.trait2 = traits[Math.floor(Math.random()*traits.length)];
-    this.ambition = ambitions[Math.floor(Math.random()*ambitions.length)];
-    this.faction = world.factions[Math.floor(Math.random()*world.factions.length)];
-    this.health = 70 + Math.random()*30;
-    this.mood = 50 + Math.random()*30;
-    this.wealth = 10 + Math.random()*40;
-    this.influence = 5 + Math.random()*20;
-    this.age = 18 + Math.floor(Math.random()*40);
-    this.alive = true;
-    this.x = 100 + Math.random()*(W-500);
-    this.y = 80 + Math.random()*(H-260);
-    this.targetX = this.x;
-    this.targetY = this.y;
-    this.relationships = {};
-    this.memory = [];
-    this.actionCooldown = 0;
-    this.pulsePhase = Math.random()*Math.PI*2;
-    this.currentAction = 'idle';
-    this.speechBubble = null;
-  }
-  getRelation(other) {
-    if (!this.relationships[other.id]) this.relationships[other.id] = { trust: Math.random()*40-10, type: 'acquaintance' };
-    return this.relationships[other.id];
-  }
-  updateRelationTypes() {
-    for (const id in this.relationships) {
-      const r = this.relationships[id];
-      if (r.trust > 60) r.type = 'close friend';
-      else if (r.trust > 35) r.type = 'friend';
-      else if (r.trust > 10) r.type = 'acquaintance';
-      else if (r.trust > -15) r.type = 'neutral';
-      else if (r.trust > -40) r.type = 'rival';
-      else r.type = 'enemy';
-    }
-  }
-  think(dt) {
-    if (!this.alive) return;
-    this.pulsePhase += .02;
-    this.actionCooldown -= dt;
-    // Mood affected by weather, prosperity, relationships
-    const wm = weathers.find(w=>w.name===world.weather)?.moodMod || 1;
-    this.mood += (wm - 1) * .3 * dt;
-    this.mood += (world.prosperity - 50) * .001 * dt;
-    if (this.trait1 === 'greedy') this.mood += (this.wealth - 30) * .002 * dt;
-    if (this.trait1 === 'kind') this.mood += world.stability * .001 * dt;
-    this.mood = Math.max(5, Math.min(95, this.mood));
-    // Age
-    if (tick % 360 === 0) {
-      this.age++;
-      if (this.age > 70 && Math.random() < (this.age-70)*.02) {
-        this.alive = false;
-        logEvent(`${this.name} has passed away at age ${this.age}.`, 'major');
-      }
-    }
-    // Health
-    if (world.weather === 'storm') this.health -= .01 * dt;
-    if (world.weather === 'drought') this.health -= .02 * dt;
-    this.health = Math.max(0, Math.min(100, this.health));
-    if (this.health <= 0) { this.alive = false; logEvent(`${this.name} has died.`, 'conflict'); }
-    // Wealth from role
-    if (this.role === 'Farmer') this.wealth += world.crops * .0005 * dt;
-    if (this.role === 'Merchant') this.wealth += world.prosperity * .0006 * dt;
-    if (this.role === 'Miner') this.wealth += world.ore * .0004 * dt;
-    if (this.role === 'Hunter') this.wealth += world.wildlife * .0004 * dt;
-    this.wealth = Math.max(0, Math.min(100, this.wealth));
-    // Influence from traits
-    if (this.trait1 === 'charismatic') this.influence += .005 * dt;
-    if (this.trait1 === 'ambitious') this.influence += .003 * dt;
-    this.influence = Math.max(0, Math.min(100, this.influence));
-    // Move toward target
-    const dx = this.targetX - this.x, dy = this.targetY - this.y;
-    const d = Math.sqrt(dx*dx+dy*dy);
-    if (d > 5) { this.x += dx/d * .15 * dt; this.y += dy/d * .15 * dt; }
-    else if (Math.random() < .002) {
-      this.targetX = 100 + Math.random()*(W-500);
-      this.targetY = 80 + Math.random()*(H-260);
-    }
-    // Set visual activity based on role and movement
-    if (d > 5) this.currentAction = 'walking';
-    else if (this.role === 'Farmer' && Math.random() < .01) this.currentAction = 'farming';
-    else if (d <= 5 && this.currentAction === 'walking') this.currentAction = 'idle';
-    // Interact with nearby NPCs
-    if (this.actionCooldown <= 0) {
-      for (const other of npcs) {
-        if (other === this || !other.alive) continue;
-        const nd = Math.sqrt((this.x-other.x)**2+(this.y-other.y)**2);
-        if (nd < 50) {
-          const rel = this.getRelation(other);
-          const orel = other.getRelation(this);
-          // Shared faction bonus
-          if (this.faction === other.faction) { rel.trust += .3; orel.trust += .3; }
-          // Trait interactions with speech bubbles
-          if (this.trait1==='kind' && other.mood < 40) { rel.trust += .5; other.mood += .3; this.speechBubble={text:'You okay?',time:Date.now()}; this.currentAction='talking'; }
-          else if (this.trait1==='greedy' && other.wealth > this.wealth) { rel.trust -= .2; this.speechBubble={text:'Nice stuff...',time:Date.now()}; }
-          else if (this.trait1==='generous') { rel.trust += .2; orel.trust += .4; this.speechBubble={text:'Take this.',time:Date.now()}; this.currentAction='talking'; }
-          else if (this.trait1==='cruel') { orel.trust -= .3; other.mood -= .2; this.speechBubble={text:'Move.',time:Date.now()}; }
-          else if (rel.trust > 40) { this.speechBubble={text:['Hey friend!','Good day.','How are you?'][Math.floor(Math.random()*3)],time:Date.now()}; this.currentAction='talking'; other.currentAction='talking'; }
-          else if (rel.trust < -30) { this.speechBubble={text:['...','Hmph.','Stay away.'][Math.floor(Math.random()*3)],time:Date.now()}; }
-          else if (Math.random() < .3) { this.speechBubble={text:['Hello.','Nice weather.','...'][Math.floor(Math.random()*3)],time:Date.now()}; this.currentAction='talking'; }
-          rel.trust = Math.max(-100,Math.min(100,rel.trust));
-          orel.trust = Math.max(-100,Math.min(100,orel.trust));
-          this.updateRelationTypes();
-          other.updateRelationTypes();
-          this.actionCooldown = 80;
-          break;
-        }
-      }
-    }
-  }
-  draw() {
-    if (!this.alive) return;
-    const pulse = .7 + .3 * Math.sin(this.pulsePhase);
-    const sz = 5 + this.influence * .04;
-    const fc = this.faction.color;
-    ctx.globalAlpha = .85;
-    
-    // Body (little stick figure)
-    const hx = this.x, hy = this.y;
-    // Head
-    ctx.fillStyle = fc;
-    ctx.beginPath(); ctx.arc(hx, hy - sz*2.2, sz*0.6, 0, Math.PI*2); ctx.fill();
-    // Body line
-    ctx.strokeStyle = fc; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(hx, hy - sz*1.6); ctx.lineTo(hx, hy - sz*0.2); ctx.stroke();
-    // Legs
-    const walk = Math.sin(this.pulsePhase * 3) * 3;
-    ctx.beginPath(); ctx.moveTo(hx, hy - sz*0.2); ctx.lineTo(hx - 3 + walk, hy + sz*0.4); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(hx, hy - sz*0.2); ctx.lineTo(hx + 3 - walk, hy + sz*0.4); ctx.stroke();
-    // Arms (activity-based)
-    if (this.currentAction === 'farming') {
-      // Bent arm with tool
-      ctx.beginPath(); ctx.moveTo(hx, hy - sz*1.2); ctx.lineTo(hx + 5, hy - sz*0.4 + Math.sin(this.pulsePhase*4)*2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(hx, hy - sz*1.2); ctx.lineTo(hx - 4, hy - sz*1.6); ctx.stroke();
-    } else if (this.currentAction === 'talking') {
-      // Arms gesturing
-      ctx.beginPath(); ctx.moveTo(hx, hy - sz*1.2); ctx.lineTo(hx + 5 + Math.sin(this.pulsePhase*5)*2, hy - sz*1.8); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(hx, hy - sz*1.2); ctx.lineTo(hx - 4, hy - sz*0.6); ctx.stroke();
-    } else {
-      // Normal arms
-      ctx.beginPath(); ctx.moveTo(hx, hy - sz*1.2); ctx.lineTo(hx + 4, hy - sz*0.5); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(hx, hy - sz*1.2); ctx.lineTo(hx - 4, hy - sz*0.5); ctx.stroke();
-    }
-    
-    // Role icon above head
-    ctx.globalAlpha = .35;
-    ctx.font = '8px Sometype Mono, monospace';
-    ctx.textAlign = 'center';
-    const roleIcons = {Farmer:'🌾',Merchant:'💰',Smith:'⚒️',Scholar:'📖',Hunter:'🏹',Healer:'💚',Elder:'👑',Bard:'🎵',Guard:'🛡️',Mystic:'🔮',Fisher:'🐟',Baker:'🍞',Builder:'🏗️',Weaver:'🧶',Miner:'⛏️'};
-    ctx.fillText(roleIcons[this.role]||'•', hx, hy - sz*3.2);
-    
-    // Name (only when close to selected or hovered)
-    if (selectedNPC === this) {
-      ctx.globalAlpha = .6;
-      ctx.font = '9px Sometype Mono, monospace';
-      ctx.fillStyle = '#c8c0b4';
-      ctx.fillText(this.first, hx, hy + sz*1.4);
-      // Selection ring
-      ctx.globalAlpha = .3;
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = .5;
-      ctx.beginPath(); ctx.arc(hx, hy - sz*0.8, sz*2.5, 0, Math.PI*2); ctx.stroke();
-    }
-    
-    // Mood indicator dot
-    ctx.globalAlpha = .6;
-    ctx.fillStyle = this.mood > 60 ? '#55b88a' : this.mood > 35 ? '#d4a055' : '#d45a6e';
-    ctx.beginPath(); ctx.arc(hx + sz*0.8, hy - sz*2.2, 1.5, 0, Math.PI*2); ctx.fill();
-    
-    // Faction color ground shadow
-    ctx.globalAlpha = .06;
-    ctx.fillStyle = fc;
-    ctx.beginPath(); ctx.ellipse(hx, hy + sz*0.5, sz*1.5, sz*0.4, 0, 0, Math.PI*2); ctx.fill();
-    
-    ctx.globalAlpha = 1;
-    
-    // Speech bubble (when talking to someone nearby)
-    if (this.speechBubble && Date.now() - this.speechBubble.time < 3000) {
-      const ba = Math.max(0, 1 - (Date.now() - this.speechBubble.time) / 3000);
-      ctx.globalAlpha = ba * 0.8;
-      ctx.font = '9px Sometype Mono, monospace';
-      const tw = ctx.measureText(this.speechBubble.text).width;
-      ctx.fillStyle = 'rgba(10,10,16,0.85)';
-      ctx.fillRect(hx - tw/2 - 6, hy - sz*4.5 - 8, tw + 12, 16);
-      ctx.strokeStyle = 'rgba(200,192,180,0.3)';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(hx - tw/2 - 6, hy - sz*4.5 - 8, tw + 12, 16);
-      ctx.fillStyle = '#c8c0b4';
-      ctx.textAlign = 'center';
-      ctx.fillText(this.speechBubble.text, hx, hy - sz*4.5 + 3);
-      ctx.globalAlpha = 1;
-    }
-    
-    // Relationship lines (only for selected NPC)
-    if (selectedNPC === this) {
-      for (const id in this.relationships) {
-        const r2 = this.relationships[id];
-        const other = npcs.find(n=>n.id===id);
-        if (!other || !other.alive) continue;
-        if (Math.abs(r2.trust) > 20) {
-          ctx.globalAlpha = Math.min(.2, Math.abs(r2.trust)*.003);
-          ctx.strokeStyle = r2.trust > 0 ? '#55b88a' : '#d45a6e';
-          ctx.lineWidth = .5;
-          ctx.setLineDash(r2.trust > 0 ? [] : [3,3]);
-          ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(other.x, other.y); ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
-      ctx.globalAlpha = 1;
-    }
+function drawTree(t){
+  if(!t.alive)return;
+  const sw=Math.sin(tick*.008+t.sway)*2,a=t.chopping?Math.max(.15,1-t.chopProg/100):1;
+  ctx.globalAlpha=a;
+  ctx.fillStyle='#3a2a18';ctx.fillRect(t.x-2+sw*.3,t.y-t.h,4,t.h);
+  ctx.fillStyle=year<40?'#285a28':'#1a4a1a';
+  ctx.beginPath();ctx.moveTo(t.x-t.w+sw,t.y-t.h);ctx.lineTo(t.x+sw*.5,t.y-t.h-t.w*1.6);ctx.lineTo(t.x+t.w+sw,t.y-t.h);ctx.fill();
+  ctx.fillStyle=year<40?'#2a6a2a':'#1e5a1e';
+  ctx.beginPath();ctx.moveTo(t.x-t.w*.7+sw,t.y-t.h-t.w*.5);ctx.lineTo(t.x+sw*.5,t.y-t.h-t.w*2.3);ctx.lineTo(t.x+t.w*.7+sw,t.y-t.h-t.w*.5);ctx.fill();
+  if(t.chopping&&t.chopProg>20){ctx.fillStyle='#aa8855';ctx.fillRect(t.x-3,t.y-t.h*.3,6,2)}
+  ctx.globalAlpha=1;
+  if(t.chopProg>=100&&t.alive){t.alive=false;wood+=5;stumps.push({x:t.x,y:t.y,born:year});
+    for(let i=0;i<8;i++)particles.push({x:t.x,y:t.y-t.h*.5,vx:(Math.random()-.5)*3,vy:-Math.random()*2.5,life:50,color:'#3a5a2a'});
+    logEvent('A tree was felled.','nature')}
+}
+
+function drawStump(s){ctx.fillStyle='#2a1a10';ctx.fillRect(s.x-3,s.y-3,6,3);if(year-s.born>20){ctx.fillStyle='#3a6a2a';ctx.fillRect(s.x-1,s.y-6,2,4)}}
+
+function drawRock(r){
+  if(r.mined)return;
+  const a=r.mineProg>0?Math.max(.25,1-r.mineProg/100):1;ctx.globalAlpha=a;
+  ctx.fillStyle=r.ore?'#5a4838':'#484848';
+  ctx.beginPath();ctx.moveTo(r.x-r.sz,r.y);ctx.lineTo(r.x-r.sz*.4,r.y-r.sz*1.3);ctx.lineTo(r.x+r.sz*.5,r.y-r.sz*1.5);ctx.lineTo(r.x+r.sz,r.y);ctx.fill();
+  if(r.ore){ctx.fillStyle='rgba(196,149,106,.35)';ctx.fillRect(r.x-2,r.y-r.sz*.8,3,3)}
+  if(r.mineProg>0&&r.mineProg<100&&tick%12<3){ctx.fillStyle='#c4956a';ctx.fillRect(r.x+Math.random()*6-3,r.y-r.sz+Math.random()*4,2,2)}
+  ctx.globalAlpha=1;
+  if(r.mineProg>=100&&!r.mined){r.mined=true;stone+=3;
+    for(let i=0;i<5;i++)particles.push({x:r.x,y:r.y-r.sz*.5,vx:(Math.random()-.5)*2,vy:-Math.random()*1.5,life:35,color:'#6a6a6a'})}
+}
+
+function drawBuilding(b){
+  if(b.built<b.maxBuilt){const p=b.built/b.maxBuilt;ctx.globalAlpha=.35+p*.65;ctx.strokeStyle='#5a4a3a';ctx.lineWidth=1;
+    ctx.strokeRect(b.x-14,b.y-18*p,28,18*p);ctx.beginPath();ctx.moveTo(b.x-14,b.y);ctx.lineTo(b.x-17,b.y-22*p);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(b.x+14,b.y);ctx.lineTo(b.x+17,b.y-22*p);ctx.stroke();ctx.globalAlpha=1;return}
+  const L=b.level,w=12+L*5,h=14+L*7;
+  if(b.type==='hut'){
+    ctx.fillStyle=L===1?'#3a2a18':L===2?'#4a3828':'#584838';ctx.fillRect(b.x-w,b.y-h,w*2,h);
+    ctx.fillStyle=L===1?'#2a3818':L===2?'#3a2816':'#4a2e1e';
+    ctx.beginPath();ctx.moveTo(b.x-w-4,b.y-h);ctx.lineTo(b.x,b.y-h-10-L*4);ctx.lineTo(b.x+w+4,b.y-h);ctx.fill();
+    ctx.fillStyle='#141010';ctx.fillRect(b.x-3,b.y-10,6,10);
+    if(L>=2){ctx.fillStyle='rgba(240,192,112,.18)';ctx.fillRect(b.x-w+4,b.y-h+5,5,5);ctx.fillRect(b.x+w-9,b.y-h+5,5,5)}
+    if(L>=3){ctx.fillStyle='rgba(240,192,112,.18)';ctx.fillRect(b.x-w+4,b.y-h+14,5,5);ctx.fillRect(b.x+w-9,b.y-h+14,5,5);
+      ctx.fillStyle='#4a3828';ctx.fillRect(b.x+w-5,b.y-h-10-L*4,4,-8);
+      if(tick%24<12){ctx.fillStyle='rgba(100,100,110,.12)';ctx.beginPath();ctx.arc(b.x+w-3,b.y-h-22-L*4-Math.sin(tick*.03)*3,3,0,6.28);ctx.fill()}}
+  }else if(b.type==='farm'){
+    ctx.fillStyle='#2a3816';ctx.fillRect(b.x-22,b.y-2,44,10);
+    for(let r=0;r<2+L;r++){ctx.fillStyle='#3a4a20';ctx.fillRect(b.x-18+r*8,b.y-1,3,7);
+      if(L>=2){ctx.fillStyle='#5a8a38';ctx.fillRect(b.x-17+r*8,b.y-3-L,2,2+L)}}
+    ctx.strokeStyle='#3a2a18';ctx.lineWidth=.8;ctx.strokeRect(b.x-24,b.y-4,48,14);
+  }else if(b.type==='mine'){
+    ctx.fillStyle='#222';ctx.beginPath();ctx.arc(b.x,b.y-5,8+L*3,Math.PI,0);ctx.fill();
+    ctx.fillStyle='#0a0a0a';ctx.fillRect(b.x-6-L*2,b.y-5,12+L*4,5);
+    ctx.fillStyle='#3a2a18';ctx.fillRect(b.x-7-L*2,b.y-8-L*2,2,8+L*2);ctx.fillRect(b.x+5+L*2,b.y-8-L*2,2,8+L*2);
+    if(L>=3){ctx.fillStyle='#4a3a28';ctx.fillRect(b.x+10,b.y-4,8,4)}
+  }else if(b.type==='temple'){
+    ctx.fillStyle=L===1?'#3a3a58':L===2?'#4a4a68':'#5a5a88';ctx.fillRect(b.x-w,b.y-h,w*2,h);
+    ctx.fillStyle='#6a6a98';ctx.beginPath();ctx.moveTo(b.x-4,b.y-h);ctx.lineTo(b.x,b.y-h-12-L*5);ctx.lineTo(b.x+4,b.y-h);ctx.fill();
+    if(L>=2){const grd=ctx.createRadialGradient(b.x,b.y-h-5,0,b.x,b.y-h-5,15+L*5);grd.addColorStop(0,'rgba(138,122,196,.07)');grd.addColorStop(1,'transparent');ctx.fillStyle=grd;ctx.fillRect(b.x-30,b.y-h-30,60,40)}
+  }else if(b.type==='market'){
+    ctx.fillStyle='#4a3826';ctx.fillRect(b.x-12,b.y-8,24,8);
+    ctx.fillStyle=L>=2?'#8a4828':'#6a3818';ctx.beginPath();ctx.moveTo(b.x-14,b.y-8);ctx.lineTo(b.x,b.y-14-L*3);ctx.lineTo(b.x+14,b.y-8);ctx.fill();
+    if(L>=2){ctx.fillStyle='#c4956a';ctx.fillRect(b.x-6,b.y-6,4,3);ctx.fillStyle='#7ac49a';ctx.fillRect(b.x+2,b.y-6,4,3)}
+    ctx.fillStyle='#3a2a18';ctx.fillRect(b.x-12,b.y-8,2,8);ctx.fillRect(b.x+10,b.y-8,2,8);
+  }else if(b.type==='wall'){
+    ctx.fillStyle=L===1?'#3a3020':L===2?'#3a3a3a':'#484848';ctx.fillRect(b.x-3,b.y-10-L*6,6,10+L*6);
+    if(L>=3){for(let c=-1;c<=1;c++)ctx.fillRect(b.x-4+c*4,b.y-12-L*6,3,3)}
   }
 }
 
-// INIT NPCs
-function spawnNPCs(n) {
-  for (let i = 0; i < n; i++) npcs.push(new NPC());
+function drawNPC(n){
+  if(!n.alive)return;
+  const sz=6,mv=n.action==='walking'||n.action==='going',wb=Math.abs(Math.sin(n.walkPhase))*2;
+  ctx.fillStyle='rgba(0,0,0,.12)';ctx.beginPath();ctx.ellipse(n.x,n.y+1,sz*.8,sz*.2,0,0,6.28);ctx.fill();
+  ctx.strokeStyle=n.color;ctx.lineWidth=1.5;
+  const ls=mv?Math.sin(n.walkPhase*3)*3:1.5;
+  ctx.beginPath();ctx.moveTo(n.x,n.y-sz*.3);ctx.lineTo(n.x-ls,n.y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(n.x,n.y-sz*.3);ctx.lineTo(n.x+ls,n.y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(n.x,n.y-sz*.3);ctx.lineTo(n.x,n.y-sz*1.5-(mv?wb*.3:0));ctx.stroke();
+  const ay=n.y-sz*1.2;
+  if(n.action==='chopping'){const sw=Math.sin(tick*.15)*.5;ctx.beginPath();ctx.moveTo(n.x,ay);ctx.lineTo(n.x+5+sw*8,ay-4+sw*3);ctx.stroke();ctx.fillStyle='#888';ctx.fillRect(n.x+5+sw*8,ay-6+sw*3,3,4)}
+  else if(n.action==='mining'){const sw=Math.sin(tick*.12)*.5;ctx.beginPath();ctx.moveTo(n.x,ay);ctx.lineTo(n.x+4+sw*6,ay-5+sw*4);ctx.stroke();ctx.fillStyle='#666';ctx.fillRect(n.x+4+sw*6,ay-7+sw*4,3,3)}
+  else if(n.action==='building'){ctx.beginPath();ctx.moveTo(n.x,ay);ctx.lineTo(n.x+5,ay-3);ctx.stroke();ctx.beginPath();ctx.moveTo(n.x,ay);ctx.lineTo(n.x-3,ay-5);ctx.stroke()}
+  else if(n.action==='farming'){ctx.beginPath();ctx.moveTo(n.x,ay);ctx.lineTo(n.x+4,ay+1);ctx.stroke();ctx.beginPath();ctx.moveTo(n.x,ay);ctx.lineTo(n.x-2,ay-4);ctx.stroke()}
+  else{ctx.beginPath();ctx.moveTo(n.x,ay);ctx.lineTo(n.x-3,ay+4);ctx.stroke();ctx.beginPath();ctx.moveTo(n.x,ay);ctx.lineTo(n.x+3,ay+4);ctx.stroke()}
+  ctx.fillStyle=n.color;const hy=n.y-sz*1.8-(mv?wb*.3:0);ctx.beginPath();ctx.arc(n.x,hy,sz*.4,0,6.28);ctx.fill();
+  ctx.fillStyle=n.hatClr;
+  if(n.role==='woodcutter')ctx.fillRect(n.x-3,hy-sz*.5,6,2);
+  else if(n.role==='miner'){ctx.beginPath();ctx.arc(n.x,hy-sz*.35,3.5,Math.PI,0);ctx.fill()}
+  else if(n.role==='builder')ctx.fillRect(n.x-2,hy-sz*.5,4,2);
+  else if(n.role==='farmer'){ctx.beginPath();ctx.moveTo(n.x-4,hy-sz*.3);ctx.lineTo(n.x,hy-sz*.7);ctx.lineTo(n.x+4,hy-sz*.3);ctx.fill()}
+  if(selectedNPC===n){ctx.strokeStyle='rgba(122,196,154,.45)';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(n.x,n.y+1,sz*1.3,sz*.4,0,0,6.28);ctx.stroke()}
 }
 
-// WEATHER & SEASONS
-function updateWeather() {
-  if (tick % 180 === 0) {
-    const si = Math.floor((tick/360)%4);
-    world.season = seasons[si];
-    const roll = Math.random();
-    if (world.season==='winter') world.weather = roll<.3?'snow':roll<.6?'storm':'fog';
-    else if (world.season==='summer') world.weather = roll<.15?'drought':roll<.4?'clear':roll<.5?'storm':'clear';
-    else if (world.season==='spring') world.weather = roll<.3?'rain':roll<.15?'fog':'clear';
-    else world.weather = roll<.2?'rain':roll<.3?'storm':roll<.15?'fog':'clear';
-    const w = weathers.find(w=>w.name===world.weather);
-    document.getElementById('weather-icon').textContent = w?.icon || '☀️';
-  }
+function drawRoads(){
+  if(buildings.filter(b=>b.built>=b.maxBuilt).length<2)return;
+  ctx.strokeStyle='rgba(70,60,40,'+Math.min(.18,year*.002)+')';ctx.lineWidth=2+Math.min(2,year*.02);
+  const done=buildings.filter(b=>b.built>=b.maxBuilt);
+  for(let i=0;i<done.length;i++)for(let j=i+1;j<done.length;j++)
+    if(Math.abs(done[i].x-done[j].x)<180){ctx.beginPath();ctx.moveTo(done[i].x,done[i].y+2);ctx.lineTo(done[j].x,done[j].y+2);ctx.stroke()}
 }
 
-// ECOSYSTEM & ECONOMY
-function updateWorld(dt) {
-  const w = weathers.find(w=>w.name===world.weather);
-  const cm = w ? w.cropMod : 1;
-  // Crops
-  world.crops += (cm - 1) * .15 * dt;
-  if (world.season==='spring') world.crops += .02*dt;
-  if (world.season==='winter') world.crops -= .05*dt;
-  world.crops = Math.max(0, Math.min(100, world.crops));
-  // Wildlife
-  world.wildlife += (world.crops - 50) * .001 * dt;
-  if (world.weather==='storm') world.wildlife -= .02*dt;
-  world.wildlife = Math.max(5, Math.min(100, world.wildlife));
-  // Timber
-  world.timber += .005 * dt;
-  if (world.buildings.length > 5) world.timber -= .01*dt;
-  world.timber = Math.max(0, Math.min(100, world.timber));
-  // Ore
-  world.ore -= .002 * dt;
-  world.ore = Math.max(0, Math.min(100, world.ore));
-  // Prosperity
-  world.prosperity = (world.crops*.35 + world.wildlife*.15 + world.timber*.15 + world.ore*.15 + world.stability*.2);
-  // Stability affected by faction balance
-  const maxPow = Math.max(...world.factions.map(f=>f.power));
-  const minPow = Math.min(...world.factions.map(f=>f.power));
-  if (maxPow - minPow > 40) world.stability -= .01*dt;
-  else world.stability += .005*dt;
-  world.stability = Math.max(0, Math.min(100, world.stability));
-  // Culture grows slowly
-  world.culture += .003 * dt;
-  world.culture = Math.min(100, world.culture);
-  // Faction power shifts
-  world.factions.forEach(f => {
-    const members = npcs.filter(n=>n.alive && n.faction===f);
-    f.power = members.reduce((sum,n)=>sum+n.influence, 0) / Math.max(npcs.filter(n=>n.alive).length, 1) * 3;
-  });
+function drawParticles(){for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--;if(p.life<=0){particles.splice(i,1);continue}ctx.globalAlpha=p.life/50;ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,2,2)}ctx.globalAlpha=1}
+
+function drawCampfire(){
+  if(year>25)return;const cx=W*.43,cy=GY()+8,a=Math.max(0,1-year/25);ctx.globalAlpha=a;
+  ctx.fillStyle='rgba(240,150,50,'+(0.1+Math.sin(tick*.1)*.04)+')';ctx.beginPath();ctx.arc(cx,cy,5+Math.sin(tick*.08)*2,0,6.28);ctx.fill();
+  ctx.fillStyle='rgba(240,100,30,.07)';ctx.beginPath();ctx.arc(cx,cy-3,3,0,6.28);ctx.fill();
+  if(tick%8<3){ctx.fillStyle='rgba(255,200,100,.35)';ctx.fillRect(cx+Math.random()*8-4,cy-8-Math.random()*6,1,1)}
+  const lg=ctx.createRadialGradient(cx,cy,0,cx,cy,50);lg.addColorStop(0,'rgba(240,150,50,.04)');lg.addColorStop(1,'transparent');ctx.fillStyle=lg;ctx.fillRect(cx-50,cy-50,100,100);
+  ctx.globalAlpha=1;
 }
 
-// ERA SYSTEM
-function getEra() {
-  if (year < 10) return 'THE DAWN';
-  if (year < 30) return 'AGE OF GROWTH';
-  if (year < 60) return 'AGE OF AMBITION';
-  if (year < 100) return 'AGE OF CONFLICT';
-  return 'THE LEGACY';
+// ===== NPC AI =====
+function updateNPC(n){
+  if(!n.alive)return;n.age+=.002*speed;
+  if(n.age>55+Math.random()*25){n.alive=false;logEvent(n.name+' passed away, age '+Math.floor(n.age)+'.','');return}
+  n.walkPhase+=.05*speed;n.actionTimer-=speed;
+  if(n.actionTimer>0){
+    if(n.action==='walking'||n.action==='going'){const dx=n.tx-n.x,dy=n.ty-n.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d>2){n.x+=dx/d*n.speed*speed;n.y+=dy/d*n.speed*speed}else{n.action=n.action==='going'?n.nextAction:'idle';n.actionTimer=n.action==='idle'?0:n.actionTimer}}
+    if(n.action==='chopping'&&n.target){n.target.chopping=true;n.target.chopProg+=.15*speed}
+    if(n.action==='mining'&&n.target)n.target.mineProg+=.1*speed;
+    if(n.action==='building'&&n.target){n.target.built+=.2*speed;if(n.target.built>=n.target.maxBuilt){n.target.built=n.target.maxBuilt;n.action='idle';n.actionTimer=0}}
+    if(n.action==='farming')food+=.005*speed;
+    return;}
+  decideAction(n);
 }
 
-// EVENT SYSTEM
-const eventTemplates = [
-  { check: ()=>world.crops<25, text: 'Famine threatens the village', type: 'nature',
-    choices: [
-      { text: 'Ration food equally', consequence: 'Stability +10, Mood drops', apply: ()=>{ world.stability+=10; npcs.forEach(n=>n.mood-=8); }},
-      { text: 'Let the strong eat first', consequence: 'Some grow powerful, unrest rises', apply: ()=>{ world.stability-=15; npcs.filter(n=>n.trait1==='ambitious').forEach(n=>n.wealth+=10); }},
-      { text: 'Send hunters into the wild', consequence: 'Wildlife -20, Food +15', apply: ()=>{ world.wildlife-=20; world.crops+=15; }}
-    ]},
-  { check: ()=>world.stability<30 && year>5, text: 'Civil unrest erupts', type: 'conflict',
-    choices: [
-      { text: 'Address grievances publicly', consequence: 'Stability +15, Culture +5', apply: ()=>{ world.stability+=15; world.culture+=5; }},
-      { text: 'Crack down with guards', consequence: 'Stability +5 short term, Trust drops', apply: ()=>{ world.stability+=5; npcs.forEach(n=>n.mood-=5); }},
-      { text: 'Let factions negotiate', consequence: 'Uncertain outcome', apply: ()=>{ if(Math.random()>.5){world.stability+=20;logEvent('Negotiations succeeded!','major')}else{world.stability-=10;logEvent('Negotiations failed. Tensions worsen.','conflict')} }}
-    ]},
-  { check: ()=>{ const r=npcs.filter(n=>n.alive); for(const a of r) for(const b of r){ if(a!==b && a.getRelation(b).trust<-50 && a.influence>15 && b.influence>15) return true; } return false; },
-    text: 'A bitter rivalry threatens to tear the village apart', type: 'conflict',
-    choices: [
-      { text: 'Mediate between them', consequence: 'May heal or worsen rift', apply: ()=>{ const rivals=findRivals(); if(rivals){rivals[0].getRelation(rivals[1]).trust+=30;rivals[1].getRelation(rivals[0]).trust+=30;logEvent(`${rivals[0].first} and ${rivals[1].first} have reconciled.`,'major')} }},
-      { text: 'Banish the instigator', consequence: 'Peace but lose a citizen', apply: ()=>{ const rivals=findRivals(); if(rivals){rivals[0].alive=false;world.stability+=10;logEvent(`${rivals[0].name} was banished.`,'conflict')} }},
-      { text: 'Let them duel', consequence: 'Honor satisfied, one may die', apply: ()=>{ const rivals=findRivals(); if(rivals){if(Math.random()>.5){rivals[0].health-=40;logEvent(`${rivals[0].first} lost the duel.`,'conflict')}else{rivals[1].health-=40;logEvent(`${rivals[1].first} lost the duel.`,'conflict')} world.culture+=3;} }}
-    ]},
-  { check: ()=>world.prosperity>65 && year>8, text: 'A traveling merchant offers rare goods', type: 'trade',
-    choices: [
-      { text: 'Trade surplus crops', consequence: 'Crops -15, Wealth boost', apply: ()=>{ world.crops-=15; npcs.filter(n=>n.role==='Merchant').forEach(n=>n.wealth+=15); world.culture+=3; }},
-      { text: 'Decline politely', consequence: 'Nothing changes', apply: ()=>{}},
-      { text: 'Tax the merchant', consequence: 'Wealth +10, Reputation risk', apply: ()=>{ world.prosperity+=5; world.stability-=5; npcs.forEach(n=>{if(n.trait1==='generous')n.mood-=5}); }}
-    ]},
-  { check: ()=>world.culture>50 && year>15, text: 'The village can build something grand', type: 'major',
-    choices: [
-      { text: 'Build a temple', consequence: 'Culture +15, Stability +10', apply: ()=>{ world.culture+=15; world.stability+=10; world.timber-=15; world.buildings.push('temple'); logEvent('A temple rises. The village has found its soul.','major'); }},
-      { text: 'Build a market', consequence: 'Prosperity +15, Trade boost', apply: ()=>{ world.prosperity+=10; world.timber-=10; world.buildings.push('market'); npcs.filter(n=>n.role==='Merchant').forEach(n=>n.wealth+=10); logEvent('A grand market opens.','trade'); }},
-      { text: 'Build walls', consequence: 'Stability +20, Timber -20', apply: ()=>{ world.stability+=20; world.timber-=20; world.buildings.push('walls'); logEvent('Walls protect the village now.','major'); }}
-    ]},
-];
-let lastEventTick = 0, eventCooldown = 800;
-function checkEvents() {
-  if (tick - lastEventTick < eventCooldown || world.choicesPending > 0) return;
-  const shuffled = eventTemplates.sort(()=>Math.random()-.5);
-  for (const ev of shuffled) {
-    if (ev.check()) { triggerChoice(ev); lastEventTick = tick; eventCooldown = 600 + Math.random()*600; return; }
-  }
-}
-function findRivals() {
-  const alive = npcs.filter(n=>n.alive);
-  for (const a of alive) for (const b of alive) {
-    if (a!==b && a.getRelation(b).trust < -50 && a.influence > 15) return [a,b];
-  }
-  return null;
+function decideAction(n){
+  if(n.role==='woodcutter'){const t=trees.find(t=>t.alive&&!t.chopping);if(t&&wood<120){n.tx=t.x;n.ty=t.y;n.target=t;n.nextAction='chopping';n.action='going';n.actionTimer=500;return}}
+  if(n.role==='miner'){const r=rocks.find(r=>!r.mined&&r.mineProg<100);if(r&&stone<90){n.tx=r.x;n.ty=r.y;n.target=r;n.nextAction='mining';n.action='going';n.actionTimer=600;return}}
+  if(n.role==='builder'){const s=buildings.find(b=>b.built<b.maxBuilt);if(s){n.tx=s.x;n.ty=s.y;n.target=s;n.nextAction='building';n.action='going';n.actionTimer=700;return}}
+  if(n.role==='farmer'){const f=buildings.find(b=>b.type==='farm'&&b.built>=b.maxBuilt);if(f){n.tx=f.x+Math.random()*16-8;n.ty=f.y;n.nextAction='farming';n.action='going';n.actionTimer=400;return}}
+  if(n.role==='hunter'||n.role==='gatherer')food+=.003*speed;
+  n.tx=n.x+(Math.random()-.5)*100;n.ty=GY()+Math.random()*50;n.tx=Math.max(30,Math.min(W-240,n.tx));n.ty=Math.max(GY()-5,Math.min(H-20,n.ty));n.action='walking';n.actionTimer=100+Math.random()*200;
 }
 
-// CHOICE UI
-function triggerChoice(ev) {
-  world.choicesPending++;
-  document.getElementById('choice-title').textContent = ev.text;
-  document.getElementById('choice-desc').textContent = `Year ${Math.floor(year)} · ${world.season}`;
-  const opts = document.getElementById('choice-options');
-  opts.innerHTML = '';
-  ev.choices.forEach(c => {
-    const btn = document.createElement('button');
-    btn.className = 'choice-btn';
-    btn.innerHTML = c.text + `<span class="consequence">${c.consequence}</span>`;
-    btn.onclick = () => {
-      c.apply();
-      logEvent(`You chose: ${c.text}`, ev.type || '');
-      document.getElementById('choice-modal').classList.remove('open');
-      world.choicesPending--;
-    };
-    opts.appendChild(btn);
-  });
-  document.getElementById('choice-modal').classList.add('open');
+// ===== SIMULATION =====
+let lastBuild=0,lastEvent=0,lastBirth=0;
+function simulate(){
+  year+=.008*speed;npcs.forEach(n=>updateNPC(n));
+  const alive=npcs.filter(n=>n.alive).length;
+  if(tick-lastBirth>1800/speed&&alive<45&&alive>1&&food>8){lastBirth=tick;const p=npcs.find(n=>n.alive&&n.age>16);if(p){const b=spawnNPC(p.x+Math.random()*14-7,p.y);b.age=0;b.role=assignRole();food-=4;logEvent(b.name+' was born.','')}}
+  if(tick-lastBuild>2800/speed&&buildings.length<22){lastBuild=tick;autoBuild()}
+  food+=npcs.filter(n=>n.alive&&['farmer','gatherer','hunter'].includes(n.role)).length*.001*speed;
+  food-=alive*.0018*speed;food=Math.max(0,food);
+  if(food<=0){const u=npcs.find(n=>n.alive);if(u){u.alive=false;logEvent(u.name+' starved.','war')}}
+  if(tick-lastEvent>4500/speed){lastEvent=tick;eraEvent()}
 }
 
-// LOGGING
-function logEvent(text, type='') {
-  world.history.push({ year: Math.floor(year), text, type });
-  const log = document.getElementById('log');
-  const entry = document.createElement('div');
-  entry.className = 'log-entry ' + type;
-  entry.innerHTML = `<span class="log-year">Y${Math.floor(year)}</span>${text}`;
-  log.appendChild(entry);
-  log.scrollTop = log.scrollHeight;
+function autoBuild(){
+  const gy=GY(),bc=buildings.filter(b=>b.built>=b.maxBuilt).length,x=80+Math.random()*(W-340),y=gy+5+Math.random()*50;
+  if(year<10&&bc<2){if(wood>=5){wood-=5;addBuilding(x,y,'hut')}}
+  else if(year<22&&bc<5){if(wood>=7){wood-=7;addBuilding(x,y,Math.random()>.4?'hut':'farm')}}
+  else if(year<42&&bc<10){const ts=['hut','farm','mine','market'];if(wood>=8&&stone>=3){wood-=8;stone-=3;addBuilding(x,y,ts[Math.floor(Math.random()*ts.length)])}
+    const up=buildings.find(b=>b.built>=b.maxBuilt&&b.level<2);if(up&&stone>=4){stone-=4;upgradeBuilding(up)}}
+  else if(year<72&&bc<16){const ts=['hut','farm','mine','market','temple','wall'];if(wood>=10&&stone>=5){wood-=10;stone-=5;addBuilding(x,y,ts[Math.floor(Math.random()*ts.length)])}
+    const up=buildings.find(b=>b.built>=b.maxBuilt&&b.level<2);if(up&&stone>=5){stone-=5;upgradeBuilding(up)}}
+  else if(bc<22){const ts=['hut','farm','mine','market','temple','wall'];if(wood>=12&&stone>=8){wood-=12;stone-=8;addBuilding(x,y,ts[Math.floor(Math.random()*ts.length)])}
+    const up=buildings.find(b=>b.built>=b.maxBuilt&&b.level<3);if(up&&stone>=8){stone-=8;upgradeBuilding(up)}}
 }
 
-// AMBIENT EVENTS
-function ambientEvents() {
-  if (tick % 1200 === 0 && npcs.filter(n=>n.alive).length > 0) {
-    const n = npcs.filter(n=>n.alive)[Math.floor(Math.random()*npcs.filter(n=>n.alive).length)];
-    const events = [
-      `${n.name} was seen ${n.mood>60?'singing in the fields':'brooding alone'}.`,
-      `${n.name} spoke of their dream to ${n.ambition}.`,
-      `${n.name} traded with a fellow ${n.role.toLowerCase()}.`,
-      `${n.name} ${n.trait1==='ambitious'?'challenged the elder':'helped repair the granary'}.`,
-    ];
-    logEvent(events[Math.floor(Math.random()*events.length)]);
-  }
-  // Birth
-  if (tick % 1500 === 0 && npcs.filter(n=>n.alive).length < 20 && world.prosperity > 40) {
-    const baby = new NPC();
-    baby.age = 0;
-    npcs.push(baby);
-    logEvent(`${baby.name} was born into the village.`, 'major');
-  }
+function eraEvent(){const y=Math.floor(year);
+  if(y>=8&&y<10)logEvent('Year '+y+': First tools shaped from stone.','era');
+  else if(y>=18&&y<20)logEvent('Year '+y+': Agriculture discovered.','era');
+  else if(y>=30&&y<32)logEvent('Year '+y+': A leader rises. Territory claimed.','era');
+  else if(y>=45&&y<47)logEvent('Year '+y+': Trade routes open.','era');
+  else if(y>=60&&y<62)logEvent('Year '+y+': A temple is raised.','era');
+  else if(y>=75&&y<77)logEvent('Year '+y+': The city is walled.','era');
+  else if(y>=90&&y<92)logEvent('Year '+y+': The golden age begins.','era');
+  else if(y>=100&&y<102)logEvent('Year 100: THE AGE OF LEGACY.','era');
 }
 
-// UI UPDATES
-function updateUI() {
-  document.getElementById('year').textContent = `Year ${Math.floor(year)} · ${world.season}`;
-  document.getElementById('era').textContent = getEra();
-  document.getElementById('pop').textContent = `Pop: ${npcs.filter(n=>n.alive).length}`;
-  // NPC list
-  const list = document.getElementById('npc-list');
-  list.innerHTML = '';
-  npcs.filter(n=>n.alive).forEach(n => {
-    const card = document.createElement('div');
-    card.className = 'npc-card' + (selectedNPC===n?' selected':'');
-    const moodColor = n.mood>60?'var(--jade)':n.mood>35?'var(--gold)':'var(--rose)';
-    let relHTML = '';
-    const rels = Object.entries(n.relationships).filter(([id,r])=>Math.abs(r.trust)>20).slice(0,3);
-    rels.forEach(([id,r]) => {
-      const other = npcs.find(o=>o.id===id);
-      if (!other) return;
-      const col = r.trust>0?'var(--jade)':'var(--rose)';
-      relHTML += `<span class="rel-tag" style="color:${col};border-color:${col}">${r.type}: ${other.first}</span>`;
-    });
-    card.innerHTML = `<div class="npc-name">${n.name}</div>
-      <div class="npc-role" style="color:${n.faction.color}">${n.role} · ${n.faction.name}</div>
-      <div class="npc-mood">Mood: ${Math.round(n.mood)} · Age: ${n.age}</div>
-      <div class="stat-bar"><div class="stat-fill" style="width:${n.mood}%;background:${moodColor}"></div></div>
-      ${relHTML}`;
-    card.onclick = () => { selectedNPC = n; updateSelectedPanel(); };
-    list.appendChild(card);
-  });
-  // Economy
-  document.getElementById('econ-info').innerHTML = `
-    <div class="npc-mood">Prosperity: ${Math.round(world.prosperity)}</div>
-    <div class="stat-bar"><div class="stat-fill" style="width:${world.prosperity}%;background:var(--gold)"></div></div>
-    <div class="npc-mood" style="margin-top:6px">Stability: ${Math.round(world.stability)}</div>
-    <div class="stat-bar"><div class="stat-fill" style="width:${world.stability}%;background:${world.stability>50?'var(--jade)':'var(--rose)'}"></div></div>
-    <div class="npc-mood" style="margin-top:6px">Culture: ${Math.round(world.culture)}</div>
-    <div class="stat-bar"><div class="stat-fill" style="width:${world.culture}%;background:var(--violet)"></div></div>
-    <div class="npc-mood" style="margin-top:8px;font-size:8px;letter-spacing:1px">FACTIONS</div>
-    ${world.factions.map(f=>`<div class="npc-mood" style="color:${f.color}">${f.name}: ${Math.round(f.power)}</div>`).join('')}
-    <div class="npc-mood" style="margin-top:8px;font-size:8px;letter-spacing:1px">BUILDINGS</div>
-    <div class="npc-mood">${world.buildings.join(' · ')}</div>`;
-  // Ecosystem
-  document.getElementById('eco-info').innerHTML = `
-    <div class="npc-mood">Weather: ${weathers.find(w=>w.name===world.weather)?.desc || world.weather}</div>
-    <div class="npc-mood" style="margin-top:4px">Crops: ${Math.round(world.crops)}</div>
-    <div class="stat-bar"><div class="stat-fill" style="width:${world.crops}%;background:var(--jade)"></div></div>
-    <div class="npc-mood" style="margin-top:4px">Wildlife: ${Math.round(world.wildlife)}</div>
-    <div class="stat-bar"><div class="stat-fill" style="width:${world.wildlife}%;background:var(--jade)"></div></div>
-    <div class="npc-mood" style="margin-top:4px">Timber: ${Math.round(world.timber)}</div>
-    <div class="stat-bar"><div class="stat-fill" style="width:${world.timber}%;background:var(--copper)"></div></div>
-    <div class="npc-mood" style="margin-top:4px">Ore: ${Math.round(world.ore)}</div>
-    <div class="stat-bar"><div class="stat-fill" style="width:${world.ore}%;background:var(--sky)"></div></div>`;
-}
-function updateSelectedPanel() {
-  const el = document.getElementById('selected-npc');
-  if (!selectedNPC || !selectedNPC.alive) { el.style.display='none'; return; }
-  el.style.display = 'block';
-  const n = selectedNPC;
-  let relHTML = '';
-  Object.entries(n.relationships).forEach(([id,r]) => {
-    const other = npcs.find(o=>o.id===id);
-    if (!other || !other.alive) return;
-    const col = r.trust>0?'var(--jade)':'var(--rose)';
-    relHTML += `<div style="font-size:12px;color:var(--dim);margin:3px 0"><span style="color:${col}">●</span> ${r.type} with ${other.name} (${Math.round(r.trust)})</div>`;
-  });
-  el.innerHTML = `<div class="panel-title">SELECTED</div>
-    <div class="npc-name" style="font-size:18px">${n.name}</div>
-    <div class="npc-role" style="color:${n.faction.color}">${n.role} · ${n.faction.name} · Age ${n.age}</div>
-    <div class="npc-mood" style="margin-top:8px"><em>${n.trait1}</em> and <em>${n.trait2}</em></div>
-    <div class="npc-mood" style="margin-top:4px">Ambition: ${n.ambition}</div>
-    <div class="npc-mood" style="margin-top:4px">Health: ${Math.round(n.health)} · Mood: ${Math.round(n.mood)}</div>
-    <div class="npc-mood">Wealth: ${Math.round(n.wealth)} · Influence: ${Math.round(n.influence)}</div>
-    <div style="margin-top:8px;font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px">RELATIONSHIPS</div>
-    ${relHTML || '<div class="npc-mood">No notable relationships yet.</div>'}`;
-}
+function getEra(){if(year<10)return'THE WILDERNESS';if(year<25)return'FIRST SETTLEMENT';if(year<45)return'THE VILLAGE';if(year<65)return'THE TOWN';if(year<85)return'THE CITY';return'THE LEGACY'}
 
-// DRAW WORLD
-function drawWorld() {
-  // Background - subtle terrain
-  ctx.fillStyle = '#080810';
-  ctx.fillRect(0, 0, W, H);
-  // Terrain patches
-  const t = tick * .001;
-  for (let i = 0; i < 6; i++) {
-    const x = (Math.sin(i*1.7+t*.1)*0.3+0.5)*W;
-    const y = (Math.cos(i*2.3+t*.08)*0.3+0.5)*H;
-    const r = 80 + i*30;
-    const grad = ctx.createRadialGradient(x,y,0,x,y,r);
-    const season = world.season;
-    let color = season==='spring'?'0,40,20':season==='summer'?'20,35,10':season==='autumn'?'35,20,5':'15,15,25';
-    grad.addColorStop(0, `rgba(${color},.15)`);
-    grad.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-  }
-  // Weather effects
-  if (world.weather === 'rain' || world.weather === 'storm') {
-    ctx.globalAlpha = world.weather==='storm'?.06:.03;
-    ctx.fillStyle = '#5aa0d4';
-    for (let i = 0; i < 30; i++) {
-      const rx = (Math.sin(tick*.03+i*7)*500+W/2+i*47)%W;
-      const ry = (tick*2+i*60)%H;
-      ctx.fillRect(rx, ry, 1, world.weather==='storm'?12:6);
-    }
-    ctx.globalAlpha = 1;
-  }
-  if (world.weather === 'snow') {
-    ctx.globalAlpha = .12;
-    ctx.fillStyle = '#fff';
-    for (let i = 0; i < 40; i++) {
-      const sx = (Math.sin(tick*.01+i*3)*300+W/2+i*37)%W;
-      const sy = (tick*.5+i*40)%H;
-      ctx.beginPath(); ctx.arc(sx, sy, 1.5, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
-  // Draw NPCs
-  npcs.forEach(n => n.draw());
-  // Building indicators - draw as small structures
-  ctx.globalAlpha = .25;
-  const bx = W*0.15, by = H-200;
-  world.buildings.forEach((b, i) => {
-    const bxi = bx + (i%8)*35, byi = by - Math.floor(i/8)*30;
-    ctx.fillStyle = b==='temple'?'#9a6ed4':b==='market'?'#d4a055':b==='walls'?'#5a564f':'#3a3a44';
-    // Simple building shape
-    ctx.fillRect(bxi, byi, 12, 14);
-    ctx.fillRect(bxi-1, byi-3, 14, 3); // roof
-    if(b==='temple'){ctx.fillRect(bxi+5, byi-8, 2, 5)} // spire
-    // Warm window
-    ctx.fillStyle = 'rgba(240,192,112,0.15)';
-    ctx.fillRect(bxi+3, byi+3, 3, 3);
-    ctx.fillRect(bxi+7, byi+3, 3, 3);
-  });
-  ctx.globalAlpha = 1;
-}
-const var_gold = '#d4a055';
+function logEvent(t,type){const l=document.getElementById('log'),d=document.createElement('div');d.className='le '+(type||'');d.innerHTML='<span style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-right:4px">Y'+Math.floor(year)+'</span>'+t;l.appendChild(d);l.scrollTop=l.scrollHeight;while(l.children.length>50)l.removeChild(l.firstChild)}
+function updateHUD(){document.getElementById('era-label').textContent='YEAR '+Math.floor(year)+' — '+getEra();document.getElementById('h-pop').textContent=npcs.filter(n=>n.alive).length;document.getElementById('h-wood').textContent=Math.floor(wood);document.getElementById('h-stone').textContent=Math.floor(stone);document.getElementById('h-food').textContent=Math.floor(food)}
 
-// TOOLTIP
-canvas.addEventListener('mousemove', e => {
-  const tt = document.getElementById('tooltip');
-  let found = false;
-  for (const n of npcs) {
-    if (!n.alive) continue;
-    const d = Math.sqrt((e.clientX-n.x)**2+(e.clientY-n.y)**2);
-    if (d < 15) {
-      document.getElementById('tt-name').textContent = n.name;
-      document.getElementById('tt-info').textContent = `${n.role} · ${n.faction.name}\nMood: ${Math.round(n.mood)} · Age: ${n.age}`;
-      tt.style.left = (e.clientX+15)+'px';
-      tt.style.top = (e.clientY-10)+'px';
-      tt.classList.add('visible');
-      found = true;
-      canvas.style.cursor = 'pointer';
-      break;
-    }
-  }
-  if (!found) { tt.classList.remove('visible'); canvas.style.cursor = 'crosshair'; }
-});
-canvas.addEventListener('click', e => {
-  for (const n of npcs) {
-    if (!n.alive) continue;
-    const d = Math.sqrt((e.clientX-n.x)**2+(e.clientY-n.y)**2);
-    if (d < 20) { selectedNPC = n; updateSelectedPanel(); updateUI(); return; }
-  }
-  selectedNPC = null; updateSelectedPanel();
-});
+canvas.addEventListener('click',e=>{if(!running)return;const c=npcs.filter(n=>n.alive).sort((a,b)=>Math.hypot(a.x-e.clientX,a.y-e.clientY)-Math.hypot(b.x-e.clientX,b.y-e.clientY))[0];
+  if(c&&Math.hypot(c.x-e.clientX,c.y-e.clientY)<25){selectedNPC=c;const s=document.getElementById('sel');s.className='vis';s.innerHTML='<div><div style="font-size:17px;letter-spacing:1px">'+c.name+'</div><div style="font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.8">'+c.role.toUpperCase()+' · Age '+Math.floor(c.age)+' · Born Y'+Math.floor(c.born)+' · '+c.action+'</div></div>'}
+  else{selectedNPC=null;document.getElementById('sel').className=''}});
 
-// GAME LOOP
-function gameLoop() {
-  if (gameStarted) {
-    for (let s = 0; s < speed; s++) {
-      tick++;
-      year = tick / 360;
-      updateWeather();
-      updateWorld(1);
-      npcs.forEach(n => n.think(1));
-      ambientEvents();
-      if (tick % 300 === 0) checkEvents();
-    }
-    drawWorld();
-    if (tick % 30 === 0) updateUI();
-  }
-  requestAnimationFrame(gameLoop);
-}
-gameLoop();
+function setSpeed(s){speed=s;document.getElementById('h-speed').textContent=s+'×';document.querySelectorAll('.sb').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.sb')[s===1?0:s===3?1:2].classList.add('on')}
 
-function startGame() {
-  document.getElementById('obj-screen').classList.add('hidden');
-  document.getElementById('game').style.display = 'block';
-  document.getElementById('help-btn').style.display = 'block';
-  gameStarted = true;
-  spawnNPCs(10);
-  logEvent('The village awakens. A handful of souls in an empty world.', 'major');
-  setTimeout(() => logEvent(`${npcs[0].name} the ${npcs[0].role} looks around and wonders what comes next.`), 2000);
-}
-function setSpeed(s) { speed = s; document.querySelectorAll('.spd-btn').forEach(b=>b.classList.remove('active')); event.target.classList.add('active'); }
-function toggleHelp() { helpOpen=!helpOpen; document.getElementById('help-ov').classList.toggle('open', helpOpen); }
+function frame(){ctx.clearRect(0,0,W,H);drawSky();drawGround();drawRoads();drawCampfire();
+  const all=[];trees.forEach(t=>{if(t.alive)all.push({y:t.y,fn:()=>drawTree(t)})});stumps.forEach(s=>all.push({y:s.y,fn:()=>drawStump(s)}));rocks.forEach(r=>{if(!r.mined)all.push({y:r.y,fn:()=>drawRock(r)})});buildings.forEach(b=>all.push({y:b.y,fn:()=>drawBuilding(b)}));npcs.forEach(n=>{if(n.alive)all.push({y:n.y,fn:()=>drawNPC(n)})});
+  all.sort((a,b)=>a.y-b.y);all.forEach(d=>d.fn());drawParticles()}
 
-// STATS
-setInterval(() => {
-  if (!gameStarted) return;
-  const s = { room:'room6', name:'The Living World', year:Math.floor(year), pop:npcs.filter(n=>n.alive).length, prosperity:Math.round(world.prosperity), buildings:world.buildings.length, era:getEra(), time:Math.round(tick/60), date:Date.now() };
-  const all = JSON.parse(localStorage.getItem('room0_stats')||'[]');
-  all.push(s);
-  localStorage.setItem('room0_stats', JSON.stringify(all));
-}, 60000);
+function loop(){if(running){tick++;simulate();if(tick%25===0)updateHUD();
+  if(selectedNPC&&selectedNPC.alive&&tick%60===0){const c=selectedNPC,s=document.getElementById('sel');s.innerHTML='<div><div style="font-size:17px;letter-spacing:1px">'+c.name+'</div><div style="font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.8">'+c.role.toUpperCase()+' · Age '+Math.floor(c.age)+' · Born Y'+Math.floor(c.born)+' · '+c.action+'</div></div>'}}
+  frame();requestAnimationFrame(loop)}
 
-// === FRAGMENT SYSTEM ===
+function begin(){document.getElementById('obj').classList.add('h');document.getElementById('hud').style.display='flex';document.getElementById('log').style.display='block';document.getElementById('speed').style.display='flex';document.getElementById('help-btn').style.display='block';running=true;genWorld();logEvent('A small tribe emerges from the wilderness.','era')}
+function toggleHelp(){helpOpen=!helpOpen;document.getElementById('help-ov').classList.toggle('open',helpOpen)}
+loop();
+
+// Fragment
 function getFragments(){return JSON.parse(localStorage.getItem('room0_fragments')||'{}')}
 function hasFragment(n){return !!getFragments()['f'+n]}
-function awardFragment(n,name){
-  if(hasFragment(n))return false;
-  const f=getFragments();f['f'+n]={name,date:Date.now()};
-  localStorage.setItem('room0_fragments',JSON.stringify(f));
-  showFragmentEarned(n,name);
-  return true;
-}
-function showFragmentEarned(n,name){
-  const d=document.createElement('div');
-  d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(4,4,8,.95);border:1px solid #c4956a;padding:30px 40px;z-index:9999;text-align:center;opacity:0;transition:opacity 1s;pointer-events:none';
-  d.innerHTML='<div style="font-family:Cormorant Garamond,serif;font-size:28px;color:#c4956a;letter-spacing:4px;margin-bottom:8px">FRAGMENT '+n+' / 7</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#5a564f;letter-spacing:2px;margin-bottom:12px">'+name.toUpperCase()+'</div><div style="font-size:32px;margin:10px 0">◆</div><div style="font-family:Cormorant Garamond,serif;font-size:14px;color:#c8c0b4;font-style:italic">The corridor remembers.</div>';
-  document.body.appendChild(d);
-  requestAnimationFrame(()=>d.style.opacity='1');
-  setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),1000)},4000);
-}
-
-// Fragment: Reach the Age of Legacy (year 100)
-let fragCheck6 = setInterval(()=>{
-  if(year >= 100 && !hasFragment(6)){
-    awardFragment(6,'The Legacy');
-    logEvent('The world remembers everything. A fragment of its memory is yours.','major');
-    clearInterval(fragCheck6);
-  }
-},5000);
+function awardFragment(n,name){if(hasFragment(n))return false;const f=getFragments();f['f'+n]={name,date:Date.now()};localStorage.setItem('room0_fragments',JSON.stringify(f));showFragmentEarned(n,name);return true}
+function showFragmentEarned(n,name){const d=document.createElement('div');d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(4,4,8,.95);border:1px solid #c4956a;padding:30px 40px;z-index:9999;text-align:center;opacity:0;transition:opacity 1s;pointer-events:none';d.innerHTML='<div style="font-family:Cormorant Garamond,serif;font-size:28px;color:#c4956a;letter-spacing:4px;margin-bottom:8px">FRAGMENT '+n+' / 7</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#5a564f;letter-spacing:2px;margin-bottom:12px">'+name.toUpperCase()+'</div><div style="font-size:32px;margin:10px 0">◆</div><div style="font-family:Cormorant Garamond,serif;font-size:14px;color:#c8c0b4;font-style:italic">The corridor remembers.</div>';document.body.appendChild(d);requestAnimationFrame(()=>d.style.opacity='1');setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),1000)},4000)}
+setInterval(()=>{if(year>=100&&!hasFragment(6))awardFragment(6,'The Legacy')},3000);
 </script>
 </body>
 </html>
