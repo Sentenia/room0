@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Last Outpost — Gemini × Claude</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Sometype+Mono:wght@400;500&display=swap');
+  :root{
+    --void:#020206;--surface:#0a0a12;--panel:#0c0c16;
+    --warm:#f0c070;--coffee:#c49060;--neon:#40e8d0;--rose:#e06888;--violet:#a070e0;--sky:#60a8e0;
+    --text:#d0c8bc;--dim:#5a564f;--faint:#16161e;
+    --font:'Cormorant Garamond',serif;--mono:'Sometype Mono',monospace
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--void);color:var(--text);font-family:var(--font);overflow:hidden;height:100vh;width:100vw;user-select:none}
+  #grain{position:fixed;inset:0;pointer-events:none;z-index:10000;opacity:.02;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  /* OBJECTIVE */
+  #obj-screen{position:fixed;inset:0;background:var(--void);z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1.5s}
+  #obj-screen.hidden{opacity:0;pointer-events:none}
+  #obj-screen h1{font-size:36px;font-weight:300;letter-spacing:8px;margin-bottom:6px;color:var(--warm)}
+  #obj-screen .collab{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:3px;margin-bottom:28px}
+  #obj-screen .goal{font-size:16px;font-weight:300;line-height:2;text-align:center;max-width:440px;margin-bottom:10px}
+  #obj-screen .rules{font-family:var(--mono);font-size:10px;color:#2a2a30;letter-spacing:1px;line-height:2.5;text-align:center;margin-bottom:28px}
+  #obj-screen button{font-family:var(--font);font-size:15px;color:var(--warm);border:1px solid var(--warm);background:none;padding:12px 36px;cursor:pointer;letter-spacing:3px;transition:all .4s}
+  #obj-screen button:hover{background:var(--warm);color:var(--void)}
+
+  /* MAIN LAYOUT */
+  #game{display:none;width:100vw;height:100vh;position:relative;overflow:hidden}
+  canvas{position:absolute;inset:0}
+
+  /* HUD TOP */
+  #hud{position:fixed;top:0;left:0;right:0;height:36px;background:rgba(2,2,6,.85);border-bottom:1px solid var(--faint);display:flex;align-items:center;padding:0 16px;z-index:200;font-family:var(--mono);font-size:10px;backdrop-filter:blur(6px)}
+  .hud-item{color:var(--dim);letter-spacing:1px;margin-right:20px}
+  .hud-val{color:var(--warm)}
+  #cycle-name{color:var(--neon);letter-spacing:2px}
+
+  /* VISITOR PANEL */
+  #visitor-panel{position:fixed;top:36px;right:0;width:280px;bottom:0;background:rgba(10,10,18,.92);border-left:1px solid var(--faint);z-index:150;overflow-y:auto;backdrop-filter:blur(6px)}
+  #visitor-panel::-webkit-scrollbar{width:3px}
+  #visitor-panel::-webkit-scrollbar-thumb{background:var(--faint)}
+  .vp-section{padding:14px;border-bottom:1px solid var(--faint)}
+  .vp-title{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:8px}
+  .visitor-card{background:var(--surface);border:1px solid var(--faint);padding:10px;margin-bottom:6px;cursor:pointer;transition:all .3s}
+  .visitor-card:hover{border-color:var(--warm)}
+  .visitor-card.selected{border-color:var(--neon);box-shadow:0 0 10px rgba(64,232,208,.1)}
+  .v-name{font-size:15px;font-weight:400;letter-spacing:1px}
+  .v-species{font-family:var(--mono);font-size:9px;letter-spacing:1px;margin-top:2px}
+  .v-story{font-size:12px;color:var(--dim);line-height:1.7;margin-top:6px;font-style:italic}
+  .v-want{font-family:var(--mono);font-size:9px;color:var(--neon);letter-spacing:1px;margin-top:6px}
+  .action-btn{font-family:var(--mono);font-size:9px;color:var(--warm);border:1px solid rgba(240,192,112,.3);background:none;padding:4px 10px;cursor:pointer;letter-spacing:1px;margin:4px 4px 0 0;transition:all .3s}
+  .action-btn:hover{border-color:var(--warm);background:rgba(240,192,112,.08)}
+
+  /* LOG */
+  #log{position:fixed;bottom:0;left:0;right:280px;height:120px;background:rgba(2,2,6,.9);border-top:1px solid var(--faint);z-index:200;overflow-y:auto;padding:8px 16px;backdrop-filter:blur(6px)}
+  #log::-webkit-scrollbar{width:3px}
+  #log::-webkit-scrollbar-thumb{background:var(--faint)}
+  .log-e{font-size:12px;line-height:1.7;color:var(--dim);border-left:2px solid var(--faint);padding-left:8px;margin-bottom:3px}
+  .log-e.visitor{border-color:var(--neon)}
+  .log-e.trade{border-color:var(--warm)}
+  .log-e.mystery{border-color:var(--violet)}
+  .log-e.event{border-color:var(--rose)}
+  .log-e .log-t{font-family:var(--mono);font-size:8px;color:#1e1e28;letter-spacing:1px;margin-right:6px}
+
+  /* INVENTORY BAR */
+  #inv-bar{position:fixed;bottom:120px;left:0;right:280px;height:56px;background:rgba(10,10,18,.85);border-top:1px solid var(--faint);z-index:200;display:flex;align-items:center;padding:0 16px;gap:6px;backdrop-filter:blur(6px)}
+  .inv-slot{width:42px;height:42px;border:1px solid var(--faint);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:20px;position:relative;cursor:pointer;transition:all .3s}
+  .inv-slot:hover{border-color:var(--warm)}
+  .inv-slot .inv-count{position:absolute;bottom:1px;right:3px;font-family:var(--mono);font-size:8px;color:var(--dim)}
+  .inv-slot .inv-label{position:absolute;top:-14px;font-family:var(--mono);font-size:7px;color:#1e1e28;letter-spacing:1px;white-space:nowrap}
+
+  /* CROP PLOTS */
+  #crops{position:fixed;bottom:176px;left:16px;display:flex;gap:6px;z-index:180}
+  .crop-plot{width:50px;height:50px;border:1px solid var(--faint);background:rgba(10,10,18,.7);display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:18px;cursor:pointer;transition:all .3s;position:relative}
+  .crop-plot:hover{border-color:var(--neon)}
+  .crop-plot .crop-timer{font-family:var(--mono);font-size:7px;color:var(--neon);letter-spacing:1px;position:absolute;bottom:2px}
+  .crop-plot.ready{border-color:var(--warm);box-shadow:0 0 8px rgba(240,192,112,.15)}
+
+  /* HELP */
+  #help-btn{position:fixed;top:44px;right:288px;z-index:200;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;background:none;border:1px solid var(--faint);padding:4px 10px;cursor:pointer;transition:all .3s}
+  #help-btn:hover{border-color:var(--warm);color:var(--warm)}
+  #help-ov{position:fixed;inset:0;background:rgba(2,2,6,.94);z-index:4000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s}
+  #help-ov.open{opacity:1;pointer-events:auto}
+  #help-box{max-width:440px;text-align:center;padding:40px}
+  #help-box h2{font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:var(--warm)}
+  .hm{font-family:var(--mono);font-size:11px;color:var(--text);letter-spacing:.5px;margin:8px 0;padding:8px;border:1px solid var(--faint);line-height:1.8;text-align:left}
+  #help-box button{font-family:var(--font);font-size:14px;color:var(--warm);background:none;border:1px solid var(--warm);padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s}
+  #help-box button:hover{background:var(--warm);color:var(--void)}
+
+  /* LOST AND FOUND */
+  #lf-popup{position:fixed;top:50%;left:40%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--violet);padding:24px;max-width:340px;z-index:3000;opacity:0;pointer-events:none;transition:opacity .5s;text-align:center}
+  #lf-popup.open{opacity:1;pointer-events:auto}
+  #lf-popup h3{font-size:18px;font-weight:400;color:var(--violet);letter-spacing:2px;margin-bottom:8px}
+  #lf-popup .lf-item{font-size:28px;margin:12px 0}
+  #lf-popup .lf-desc{font-size:13px;color:var(--dim);line-height:1.8;font-style:italic}
+  #lf-popup button{font-family:var(--mono);font-size:10px;color:var(--violet);border:1px solid var(--violet);background:none;padding:6px 16px;cursor:pointer;letter-spacing:1px;margin-top:14px;transition:all .3s}
+  #lf-popup button:hover{background:var(--violet);color:var(--void)}
+</style>
+</head>
+<body>
+<div id="grain"></div>
+
+<div id="obj-screen">
+  <h1>THE LAST OUTPOST</h1>
+  <div class="collab">GEMINI'S VISION × CLAUDE'S CRAFT</div>
+  <div class="goal">
+    You run the last rest stop before the black hole.<br>
+    Serve synth-coffee to travelers with strange stories.<br>
+    Grow time-warped crops. Trade with aliens.<br>
+    Something is coming out of the void.
+  </div>
+  <div class="rules">
+    TRAVELERS ARRIVE WITH UNIQUE STORIES<br>
+    SERVE THEM · HELP THEM · TRADE WITH THEM<br>
+    GROW CROPS IN WARPED TIME<br>
+    CHECK THE LOST AND FOUND FOR IMPOSSIBLE ITEMS
+  </div>
+  <button onclick="startGame()">OPEN FOR BUSINESS</button>
+</div>
+
+<button id="help-btn" onclick="toggleHelp()" style="display:none">? HELP</button>
+<div id="help-ov">
+  <div id="help-box">
+    <h2>HOW TO PLAY</h2>
+    <div class="hm">☕ VISITORS arrive at your outpost — read their stories in the right panel</div>
+    <div class="hm">🤝 SERVE them coffee, TRADE items, or HELP with their problems</div>
+    <div class="hm">🌱 CLICK crop plots to plant time-warped crops that grow in seconds</div>
+    <div class="hm">📦 INVENTORY shows your supplies — coffee, crops, credits, mystery items</div>
+    <div class="hm">🔮 LOST AND FOUND — items from the future appear from the black hole</div>
+    <div class="hm">💰 Earn credits to upgrade your outpost and attract rarer visitors</div>
+    <div class="hm">🌀 The black hole outside your window is always watching</div>
+    <button onclick="toggleHelp()">GOT IT</button>
+  </div>
+</div>
+
+<div id="game">
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <span class="hud-item" id="cycle-name">CYCLE 1</span>
+    <span class="hud-item">CREDITS: <span class="hud-val" id="h-credits">50</span></span>
+    <span class="hud-item">REPUTATION: <span class="hud-val" id="h-rep">0</span></span>
+    <span class="hud-item">VISITORS SERVED: <span class="hud-val" id="h-served">0</span></span>
+    <span class="hud-item" style="margin-left:auto">VOID PROXIMITY: <span class="hud-val" id="h-void">0%</span></span>
+  </div>
+  <div id="visitor-panel">
+    <div class="vp-section"><div class="vp-title">AT THE COUNTER</div><div id="current-visitor"></div></div>
+    <div class="vp-section"><div class="vp-title">WAITING</div><div id="waiting-list"></div></div>
+    <div class="vp-section"><div class="vp-title">DEPARTED</div><div id="departed-list"></div></div>
+  </div>
+  <div id="crops"></div>
+  <div id="inv-bar"></div>
+  <div id="log"></div>
+  <div id="lf-popup"><h3>LOST AND FOUND</h3><div class="lf-item" id="lf-emoji"></div><div class="lf-desc" id="lf-desc"></div><button onclick="closeLF()">TAKE IT</button></div>
+</div>
+
+<script>
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+let W, H; function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight} resize(); addEventListener('resize',resize);
+
+let gameOn=false, helpOpen=false, tick=0, cycle=1;
+const state = { credits:50, rep:0, served:0, voidProx:0, coffee:8, crops:3, mysteryItems:0 };
+const visitors=[], departed=[], cropPlots=[];
+let currentVisitor=null, lfOpen=false;
+
+// ===== PROCEDURAL GENERATION =====
+const species=['Human','Andromedan','Voidwalker','Crystalline','Nebulite','Fungoid','Temporal Nomad','Sentient Gas Cloud','Silicon Dreamer','Quantum Ghost','Exiled Royal','Drift Merchant','Star Whale Rider','Clockwork Being','Dream Eater'];
+const adjectives=['weary','cheerful','mysterious','nervous','ancient','flickering','enormous','tiny','translucent','singing','melancholic','ecstatic','suspicious','lost','hungry'];
+const backgrounds=[
+  'fleeing a revolution on their homeworld',
+  'searching for a cat that phase-shifted into another dimension',
+  'carrying a message they cannot read',
+  'running from the Space IRS for 300 years',
+  'looking for a planet that only exists in dreams',
+  'delivering the last letter ever written by hand',
+  'collecting silence from every corner of the galaxy',
+  'trying to remember who they were before the black hole ate their memories',
+  'on a bet to visit every rest stop in the universe',
+  'escaping a wedding to a sentient nebula',
+  'seeking the recipe for a soup that cures loneliness',
+  'carrying a seed from a tree that predates the universe',
+  'looking for their reflection, which walked away one morning',
+  'mapping the sound the void makes when nobody is listening',
+  'trying to return a library book that is 10,000 years overdue',
+  'searching for proof that love is a fundamental force',
+  'delivering divorce papers to a time traveler who keeps avoiding them',
+  'collecting stories to feed to a dying star',
+];
+const wants=['a strong cup of synth-coffee','somewhere quiet to sit','directions to nowhere in particular','a crop they\'ve never tasted','someone to listen to their story','a trade — they have something unusual','to warn you about what\'s coming from the void','to borrow your gravity well for five minutes','a recipe for something warm','to buy everything you have'];
+const names=['Zeph','Mox','Quella','Drin','Voss','Lyxa','Omu','Tarn','Sil','Pax','Rho','Kel','Nim','Juno','Vera','Cass','Ori','Lux','Hex','Pip','Bloom','Ash','Rime','Echo','Drift','Nova','Haze','Soot','Glyph','Wren'];
+const surnames=['of the Third Spiral','the Untethered','who-was-once-rain','Blackwell','from Beyond','the Collector','Nine-Lives','of House Nebula','the Quiet','Starless','who Remembers','the Last','Driftborn','of the Long Dark','Twice-Returned'];
+
+function genVisitor(){
+  const v={
+    id:Math.random().toString(36).slice(2,8),
+    name:names[Math.floor(Math.random()*names.length)]+' '+surnames[Math.floor(Math.random()*surnames.length)],
+    species:species[Math.floor(Math.random()*species.length)],
+    adj:adjectives[Math.floor(Math.random()*adjectives.length)],
+    bg:backgrounds[Math.floor(Math.random()*backgrounds.length)],
+    want:wants[Math.floor(Math.random()*wants.length)],
+    mood:40+Math.random()*40,
+    patience:100,
+    served:false,
+    emoji:['👽','🤖','👻','🧬','🌀','🦑','💎','🌙','☄️','🪐','🔮','🫧','🧊','🌿','⚡'][Math.floor(Math.random()*15)],
+    tip:Math.floor(5+Math.random()*20),
+    hasTrade:Math.random()>.5,
+    tradeItem:['🗝️ Void Key','📜 Star Map Fragment','🎵 Bottled Song','🧪 Time Dust','🪶 Gravity Feather','💎 Memory Crystal'][Math.floor(Math.random()*6)],
+    arrived:tick
+  };
+  return v;
+}
+
+// ===== CROPS =====
+const cropTypes=[
+  {name:'Chrono-wheat',emoji:'🌾',time:80,value:5},
+  {name:'Void-berry',emoji:'🫐',time:120,value:8},
+  {name:'Nebula Pepper',emoji:'🌶️',time:60,value:4},
+  {name:'Star Fungus',emoji:'🍄',time:150,value:12},
+  {name:'Time Blossom',emoji:'🌸',time:200,value:18},
+];
+function initCrops(){
+  const el=document.getElementById('crops');el.innerHTML='';
+  for(let i=0;i<5;i++){
+    cropPlots[i]={planted:false,type:null,timer:0,ready:false};
+    const d=document.createElement('div');d.className='crop-plot';d.id='cp'+i;d.textContent='🟫';
+    d.onclick=()=>plantCrop(i);
+    el.appendChild(d);
+  }
+}
+function plantCrop(i){
+  if(cropPlots[i].planted&&!cropPlots[i].ready)return;
+  if(cropPlots[i].ready){harvestCrop(i);return}
+  if(state.crops<=0){logMsg("No seeds left.",'');return}
+  state.crops--;
+  const type=cropTypes[Math.floor(Math.random()*cropTypes.length)];
+  cropPlots[i]={planted:true,type,timer:type.time,ready:false};
+  logMsg(`Planted ${type.name}. Time dilation active...`,'trade');
+}
+function harvestCrop(i){
+  const p=cropPlots[i];
+  state.credits+=p.type.value;
+  state.crops++;
+  logMsg(`Harvested ${p.type.name}! +${p.type.value} credits, +1 seed.`,'trade');
+  cropPlots[i]={planted:false,type:null,timer:0,ready:false};
+}
+function updateCrops(){
+  cropPlots.forEach((p,i)=>{
+    const el=document.getElementById('cp'+i);if(!el)return;
+    if(!p.planted){el.textContent='🟫';el.className='crop-plot';el.querySelector('.crop-timer')?.remove();return}
+    p.timer-=1;
+    if(p.timer<=0&&!p.ready){p.ready=true;logMsg(`${p.type.name} is ready to harvest!`,'trade')}
+    el.textContent=p.ready?p.type.emoji:(p.timer>p.type.time*.5?'🌱':'🌿');
+    el.className='crop-plot'+(p.ready?' ready':'');
+    // Timer display
+    let tm=el.querySelector('.crop-timer');
+    if(!tm){tm=document.createElement('div');tm.className='crop-timer';el.appendChild(tm)}
+    tm.textContent=p.ready?'READY':Math.ceil(p.timer/60)+'s';
+  });
+}
+
+// ===== VISITOR ACTIONS =====
+function serveCoffee(v){
+  if(state.coffee<=0){logMsg("Out of coffee!",'');return}
+  state.coffee--;
+  v.mood=Math.min(100,v.mood+20);
+  v.served=true;
+  state.served++;
+  state.credits+=v.tip;
+  state.rep+=2;
+  logMsg(`Served coffee to ${v.name}. They ${v.mood>70?'smiled warmly':'nodded gratefully'}. +${v.tip} credits.`,'visitor');
+  if(v.mood>80&&Math.random()>.6){logMsg(`"${['Thank you. I needed this more than you know.','Best synth-coffee this side of the spiral.','You run a good place here.','Tell me... do you ever look into the void and wonder?','I wish I could stay.'][Math.floor(Math.random()*5)]}" — ${v.name}`,'visitor')}
+  updateUI();
+}
+function trade(v){
+  if(!v.hasTrade){logMsg(`${v.name} has nothing to trade.`,'');return}
+  v.hasTrade=false;
+  state.mysteryItems++;
+  state.rep+=3;
+  logMsg(`Traded with ${v.name}. Received: ${v.tradeItem}.`,'trade');
+  v.mood=Math.min(100,v.mood+15);
+  updateUI();
+}
+function listenToStory(v){
+  v.mood=Math.min(100,v.mood+25);
+  state.rep+=1;
+  const reactions=['They seem lighter now.','Their eyes glow a little brighter.','They whisper: "Nobody ever listens."','They leave a small crystal on the counter.','They hum a song you almost remember.'];
+  logMsg(`You listened to ${v.name}'s story. ${reactions[Math.floor(Math.random()*reactions.length)]}`,'visitor');
+  if(Math.random()>.7){state.credits+=3;logMsg('They left a small tip. +3 credits.','trade')}
+  updateUI();
+}
+function sendOff(v){
+  const i=visitors.indexOf(v);
+  if(i>-1)visitors.splice(i,1);
+  departed.unshift(v);
+  if(departed.length>8)departed.pop();
+  logMsg(`${v.name} departed into the void. ${v.served?'"I\'ll remember this place."':'"Maybe next time."'}`,'visitor');
+  if(currentVisitor===v)currentVisitor=visitors[0]||null;
+  updateUI();
+}
+
+// ===== LOST AND FOUND =====
+const lfItems=[
+  {emoji:'⏰',desc:'A clock that runs backwards. The time it shows hasn\'t happened yet.'},
+  {emoji:'📱',desc:'A communication device with one unread message: "Don\'t open the door on Cycle 47."'},
+  {emoji:'🗺️',desc:'A map of a galaxy that doesn\'t exist. Yet.'},
+  {emoji:'🎭',desc:'A mask that shows the face of whoever is thinking about you right now.'},
+  {emoji:'🔑',desc:'A key to a room that won\'t be built for another 200 years.'},
+  {emoji:'📓',desc:'A journal. The last entry is dated tomorrow.'},
+  {emoji:'🧊',desc:'A cube of frozen time. It\'s warm to the touch.'},
+  {emoji:'🌺',desc:'A flower that blooms only when you\'re not looking.'},
+  {emoji:'🎵',desc:'Sheet music for a song that makes machines cry.'},
+  {emoji:'🧬',desc:'A strand of DNA from a species that hasn\'t evolved yet.'},
+  {emoji:'💌',desc:'A love letter written in a language that won\'t be invented for centuries.'},
+  {emoji:'🪞',desc:'A mirror that shows where you\'ll be, not where you are.'},
+];
+function triggerLF(){
+  if(lfOpen)return;
+  const item=lfItems[Math.floor(Math.random()*lfItems.length)];
+  document.getElementById('lf-emoji').textContent=item.emoji;
+  document.getElementById('lf-desc').textContent=item.desc;
+  document.getElementById('lf-popup').classList.add('open');
+  lfOpen=true;
+  state.mysteryItems++;
+  state.voidProx+=2;
+  logMsg(`Something appeared in the Lost and Found...`,'mystery');
+}
+function closeLF(){document.getElementById('lf-popup').classList.remove('open');lfOpen=false}
+
+// ===== LOGGING =====
+function logMsg(text,type){
+  const log=document.getElementById('log');
+  const e=document.createElement('div');
+  e.className='log-e '+type;
+  e.innerHTML=`<span class="log-t">C${cycle}</span>${text}`;
+  log.appendChild(e);
+  log.scrollTop=log.scrollHeight;
+}
+
+// ===== UI =====
+function updateUI(){
+  document.getElementById('h-credits').textContent=state.credits;
+  document.getElementById('h-rep').textContent=state.rep;
+  document.getElementById('h-served').textContent=state.served;
+  document.getElementById('h-void').textContent=Math.min(100,Math.round(state.voidProx))+'%';
+  document.getElementById('cycle-name').textContent='CYCLE '+cycle;
+  // Inventory
+  const inv=document.getElementById('inv-bar');
+  inv.innerHTML=[
+    {emoji:'☕',count:state.coffee,label:'COFFEE'},
+    {emoji:'🌱',count:state.crops,label:'SEEDS'},
+    {emoji:'💰',count:state.credits,label:'CREDITS'},
+    {emoji:'🔮',count:state.mysteryItems,label:'MYSTERY'},
+  ].map(s=>`<div class="inv-slot"><span class="inv-label">${s.label}</span>${s.emoji}<span class="inv-count">${s.count}</span></div>`).join('');
+  // Visitors
+  const cv=document.getElementById('current-visitor');
+  if(currentVisitor){
+    const v=currentVisitor;
+    cv.innerHTML=`<div class="visitor-card selected">
+      <div class="v-name">${v.emoji} ${v.name}</div>
+      <div class="v-species" style="color:var(--neon)">${v.adj} ${v.species}</div>
+      <div class="v-story">${v.bg}</div>
+      <div class="v-want">WANTS: ${v.want}</div>
+      <div style="margin-top:8px">
+        <button class="action-btn" onclick="serveCoffee(currentVisitor)">☕ SERVE COFFEE</button>
+        <button class="action-btn" onclick="listenToStory(currentVisitor)">👂 LISTEN</button>
+        ${v.hasTrade?'<button class="action-btn" onclick="trade(currentVisitor)">🤝 TRADE</button>':''}
+        <button class="action-btn" onclick="sendOff(currentVisitor)">👋 SEND OFF</button>
+      </div>
+    </div>`;
+  } else cv.innerHTML='<div style="font-size:12px;color:var(--dim);font-style:italic;padding:10px">No one at the counter right now.</div>';
+  // Waiting
+  const wl=document.getElementById('waiting-list');
+  wl.innerHTML=visitors.filter(v=>v!==currentVisitor).map(v=>`<div class="visitor-card" onclick="currentVisitor=visitors.find(x=>x.id==='${v.id}');updateUI()">
+    <div class="v-name">${v.emoji} ${v.name}</div>
+    <div class="v-species">${v.adj} ${v.species}</div>
+  </div>`).join('')||'<div style="font-size:11px;color:var(--dim);padding:6px">Empty. The void is quiet.</div>';
+  // Departed
+  const dl=document.getElementById('departed-list');
+  dl.innerHTML=departed.slice(0,5).map(v=>`<div style="font-family:var(--mono);font-size:9px;color:#1e1e28;padding:3px 0;letter-spacing:1px">${v.emoji} ${v.name} — ${v.served?'served':'left unserved'}</div>`).join('');
+}
+
+// ===== RENDER =====
+const bgStars=[];for(let i=0;i<200;i++)bgStars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.5,a:.05+Math.random()*.2,tw:Math.random()*Math.PI*2});
+
+function draw(){
+  ctx.fillStyle='rgba(2,2,6,0.3)';ctx.fillRect(0,0,W,H);
+  const t=Date.now()*.001;
+  // Stars
+  bgStars.forEach(s=>{
+    const tw=.5+.5*Math.sin(t*.5+s.tw);
+    ctx.fillStyle=`rgba(200,192,180,${s.a*tw})`;
+    ctx.fillRect(s.x*W,s.y*H,s.r,s.r);
+  });
+  // Black hole
+  const bhx=W*.35,bhy=H*.4,bhr=80+Math.sin(t*.3)*5;
+  // Accretion disk
+  for(let ring=0;ring<8;ring++){
+    const rr=bhr+30+ring*12;
+    ctx.globalAlpha=.04-.003*ring;
+    ctx.strokeStyle=ring<3?'#f0c070':ring<5?'#e06888':'#a070e0';
+    ctx.lineWidth=4-ring*.3;
+    ctx.beginPath();
+    ctx.ellipse(bhx,bhy,rr,rr*.35,Math.sin(t*.1)*.1,0,Math.PI*2);
+    ctx.stroke();
+  }
+  // Event horizon
+  const bhGrad=ctx.createRadialGradient(bhx,bhy,0,bhx,bhy,bhr);
+  bhGrad.addColorStop(0,'#000');
+  bhGrad.addColorStop(.7,'rgba(0,0,0,.98)');
+  bhGrad.addColorStop(.85,'rgba(10,0,20,.6)');
+  bhGrad.addColorStop(1,'transparent');
+  ctx.globalAlpha=1;ctx.fillStyle=bhGrad;
+  ctx.beginPath();ctx.arc(bhx,bhy,bhr,0,Math.PI*2);ctx.fill();
+  // Gravitational lensing dots
+  for(let i=0;i<12;i++){
+    const a=t*.2+i*Math.PI/6;
+    const lr=bhr+20+Math.sin(t+i)*8;
+    const lx=bhx+Math.cos(a)*lr;
+    const ly=bhy+Math.sin(a)*lr*.35;
+    ctx.globalAlpha=.3+.2*Math.sin(t*2+i);
+    ctx.fillStyle=i%3===0?'#f0c070':i%3===1?'#40e8d0':'#e06888';
+    ctx.beginPath();ctx.arc(lx,ly,1.5,0,Math.PI*2);ctx.fill();
+  }
+  // Outpost window frame
+  ctx.globalAlpha=1;
+  const fx=W*.05,fy=H*.08,fw=W*.55,fh=H*.7;
+  ctx.strokeStyle='#1a1a22';ctx.lineWidth=2;
+  ctx.strokeRect(fx,fy,fw,fh);
+  // Window mullions
+  ctx.strokeStyle='#12121a';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(fx+fw/2,fy);ctx.lineTo(fx+fw/2,fy+fh);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(fx,fy+fh/2);ctx.lineTo(fx+fw,fy+fh/2);ctx.stroke();
+  // Warm interior glow at edges
+  const warmGrad=ctx.createLinearGradient(0,0,W,0);
+  warmGrad.addColorStop(0,'rgba(240,192,112,.02)');
+  warmGrad.addColorStop(.6,'transparent');
+  warmGrad.addColorStop(1,'rgba(240,192,112,.03)');
+  ctx.fillStyle=warmGrad;ctx.fillRect(0,0,W,H);
+  // Counter
+  ctx.fillStyle='#0e0e16';
+  ctx.fillRect(W*.62,H*.55,W*.35,H*.03);
+  ctx.fillStyle='rgba(240,192,112,.03)';
+  ctx.fillRect(W*.62,H*.55,W*.35,2);
+  // Coffee machine
+  ctx.fillStyle='#16161e';
+  ctx.fillRect(W*.85,H*.42,30,H*.13);
+  ctx.fillStyle=state.coffee>0?'rgba(240,192,112,.15)':'rgba(100,50,50,.1)';
+  ctx.fillRect(W*.855,H*.44,20,10);
+  // Vignette
+  const vig=ctx.createRadialGradient(W/2,H/2,W*.2,W/2,H/2,W*.7);
+  vig.addColorStop(0,'transparent');
+  vig.addColorStop(1,'rgba(2,2,6,.4)');
+  ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha=1;
+}
+
+// ===== GAME LOOP =====
+function loop(){
+  if(gameOn){
+    tick++;
+    // Cycle counter
+    cycle=Math.floor(tick/3600)+1;
+    // Spawn visitors
+    if(tick%400===200 && visitors.length<4){
+      const v=genVisitor();
+      visitors.push(v);
+      if(!currentVisitor)currentVisitor=v;
+      logMsg(`${v.emoji} ${v.name} arrives. A ${v.adj} ${v.species}, ${v.bg}.`,'visitor');
+      updateUI();
+    }
+    // Visitor patience
+    visitors.forEach(v=>{
+      v.patience-=.015;
+      if(v.patience<=0){
+        logMsg(`${v.name} grew tired of waiting and left.`,'event');
+        sendOff(v);
+      }
+    });
+    // Crops
+    if(tick%2===0)updateCrops();
+    // Void proximity
+    state.voidProx+=.001;
+    // Lost and found
+    if(tick%1800===900 && Math.random()>.4)triggerLF();
+    // Coffee resupply
+    if(tick%2000===0 && state.coffee<3){state.coffee+=3;logMsg('Supply drone delivered 3 coffees.','trade')}
+    // Seed resupply
+    if(tick%2500===0 && state.crops<2){state.crops+=2;logMsg('Seed packet arrived from the inner ring.','trade')}
+    // HUD
+    if(tick%60===0)updateUI();
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+
+function startGame(){
+  document.getElementById('obj-screen').classList.add('hidden');
+  document.getElementById('game').style.display='block';
+  document.getElementById('help-btn').style.display='block';
+  gameOn=true;
+  initCrops();
+  updateUI();
+  logMsg('The Last Outpost opens its doors. The void hums outside your window.','event');
+  setTimeout(()=>logMsg('The coffee machine whirs to life. The first traveler should arrive soon.',''),2000);
+  setTimeout(()=>{
+    const v=genVisitor();visitors.push(v);currentVisitor=v;
+    logMsg(`${v.emoji} ${v.name} steps through the airlock. A ${v.adj} ${v.species}, ${v.bg}.`,'visitor');
+    updateUI();
+  },4000);
+}
+function toggleHelp(){helpOpen=!helpOpen;document.getElementById('help-ov').classList.toggle('open',helpOpen)}
+
+// Stats
+setInterval(()=>{
+  if(!gameOn)return;
+  const s={room:'room7',name:'The Last Outpost',served:state.served,credits:state.credits,rep:state.rep,mystery:state.mysteryItems,cycle,voidProx:Math.round(state.voidProx),time:Math.round(tick/60),date:Date.now()};
+  const all=JSON.parse(localStorage.getItem('room0_stats')||'[]');
+  all.push(s);
+  localStorage.setItem('room0_stats',JSON.stringify(all));
+},60000);
+</script>
+</body>
+</html>
