@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Living World — GPT × Claude</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Sometype+Mono:wght@400;500&display=swap');
+  :root{
+    --void:#050508;--surface:#0a0a10;--panel:#0d0d14;
+    --gold:#d4a055;--copper:#c47a5a;--jade:#55b88a;--sky:#5aa0d4;--rose:#d45a6e;--violet:#9a6ed4;
+    --text:#c8c0b4;--dim:#5a564f;--faint:#1a1a22;--glow:rgba(212,160,85,.15);
+    --font:'Cormorant Garamond',serif;--mono:'Sometype Mono',monospace
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--void);color:var(--text);font-family:var(--font);overflow:hidden;height:100vh;width:100vw;user-select:none}
+  #grain{position:fixed;inset:0;pointer-events:none;z-index:10000;opacity:.02;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  /* OBJECTIVE SCREEN */
+  #obj-screen{position:fixed;inset:0;background:var(--void);z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1.5s}
+  #obj-screen.hidden{opacity:0;pointer-events:none}
+  #obj-screen h1{font-size:40px;font-weight:300;letter-spacing:10px;margin-bottom:6px}
+  #obj-screen .collab{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:3px;margin-bottom:28px}
+  #obj-screen .goal{font-size:17px;font-weight:300;line-height:2;text-align:center;max-width:440px;margin-bottom:10px}
+  #obj-screen .rules{font-family:var(--mono);font-size:10px;color:#2a2a30;letter-spacing:1px;line-height:2.5;text-align:center;margin-bottom:28px}
+  #obj-screen button{font-family:var(--font);font-size:15px;color:var(--gold);border:1px solid var(--gold);background:none;padding:12px 36px;cursor:pointer;letter-spacing:3px;transition:all .4s}
+  #obj-screen button:hover{background:var(--gold);color:var(--void)}
+
+  /* LAYOUT */
+  #game{display:none;width:100vw;height:100vh;position:relative}
+  #world-canvas{position:absolute;inset:0}
+
+  /* TOP BAR */
+  #topbar{position:fixed;top:0;left:0;right:0;height:40px;background:rgba(5,5,8,.85);border-bottom:1px solid var(--faint);display:flex;align-items:center;padding:0 16px;z-index:200;backdrop-filter:blur(6px)}
+  #topbar .era{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:2px}
+  #topbar .year{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;margin-left:16px}
+  #topbar .weather-icon{margin-left:auto;font-size:14px}
+  #topbar .pop{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;margin-left:12px}
+  #speed-controls{margin-left:12px;display:flex;gap:4px}
+  .spd-btn{font-family:var(--mono);font-size:9px;color:var(--dim);background:none;border:1px solid var(--faint);padding:2px 8px;cursor:pointer;letter-spacing:1px;transition:all .3s}
+  .spd-btn.active{color:var(--gold);border-color:var(--gold)}
+  .spd-btn:hover{border-color:var(--dim)}
+
+  /* SIDE PANEL */
+  #panel{position:fixed;top:40px;right:0;width:300px;bottom:0;background:rgba(10,10,16,.92);border-left:1px solid var(--faint);z-index:150;overflow-y:auto;backdrop-filter:blur(6px);transition:transform .4s}
+  #panel.hidden{transform:translateX(100%)}
+  #panel::-webkit-scrollbar{width:3px}
+  #panel::-webkit-scrollbar-thumb{background:var(--faint)}
+  .panel-section{padding:16px;border-bottom:1px solid var(--faint)}
+  .panel-title{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:10px}
+  .npc-card{background:var(--surface);border:1px solid var(--faint);padding:10px;margin-bottom:6px;cursor:pointer;transition:all .3s}
+  .npc-card:hover{border-color:var(--gold)}
+  .npc-card.selected{border-color:var(--gold);box-shadow:0 0 12px var(--glow)}
+  .npc-name{font-size:15px;font-weight:400;letter-spacing:1px}
+  .npc-role{font-family:var(--mono);font-size:9px;letter-spacing:1px;margin-top:2px}
+  .npc-mood{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px}
+  .stat-bar{height:3px;background:var(--faint);margin-top:4px;border-radius:1px;overflow:hidden}
+  .stat-fill{height:100%;transition:width .8s ease}
+  .rel-tag{display:inline-block;font-family:var(--mono);font-size:8px;letter-spacing:1px;padding:1px 6px;margin:2px 2px 0 0;border:1px solid}
+
+  /* EVENT LOG */
+  #log{position:fixed;bottom:0;left:0;right:300px;height:140px;background:rgba(5,5,8,.9);border-top:1px solid var(--faint);z-index:200;overflow-y:auto;padding:10px 16px;backdrop-filter:blur(6px)}
+  #log::-webkit-scrollbar{width:3px}
+  #log::-webkit-scrollbar-thumb{background:var(--faint)}
+  .log-entry{font-size:13px;line-height:1.8;color:var(--dim);border-left:2px solid var(--faint);padding-left:10px;margin-bottom:4px;transition:all .4s}
+  .log-entry.major{color:var(--text);border-color:var(--gold)}
+  .log-entry.conflict{border-color:var(--rose)}
+  .log-entry.nature{border-color:var(--jade)}
+  .log-entry.trade{border-color:var(--copper)}
+  .log-entry .log-year{font-family:var(--mono);font-size:9px;color:#2a2a30;letter-spacing:1px;margin-right:8px}
+
+  /* CHOICE MODAL */
+  #choice-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--gold);padding:28px;max-width:400px;width:90%;z-index:3000;opacity:0;pointer-events:none;transition:opacity .5s}
+  #choice-modal.open{opacity:1;pointer-events:auto}
+  #choice-title{font-size:20px;font-weight:400;letter-spacing:2px;margin-bottom:6px}
+  #choice-desc{font-size:13px;color:var(--dim);line-height:1.8;margin-bottom:16px}
+  .choice-btn{display:block;width:100%;text-align:left;font-family:var(--font);font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--faint);padding:10px 14px;margin-bottom:6px;cursor:pointer;transition:all .3s;letter-spacing:.5px}
+  .choice-btn:hover{border-color:var(--gold);padding-left:20px}
+  .choice-btn .consequence{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:3px;display:block}
+
+  /* HELP */
+  #help-btn{position:fixed;top:48px;right:308px;z-index:200;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;background:none;border:1px solid var(--faint);padding:4px 10px;cursor:pointer;transition:all .3s}
+  #help-btn:hover{border-color:var(--gold);color:var(--gold)}
+  #help-ov{position:fixed;inset:0;background:rgba(5,5,8,.94);z-index:4000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s}
+  #help-ov.open{opacity:1;pointer-events:auto}
+  #help-box{max-width:440px;text-align:center;padding:40px}
+  #help-box h2{font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:var(--gold)}
+  .hmech{font-family:var(--mono);font-size:11px;color:var(--text);letter-spacing:1px;margin:8px 0;padding:8px;border:1px solid var(--faint);line-height:1.8;text-align:left}
+  #help-box button{font-family:var(--font);font-size:14px;color:var(--gold);background:none;border:1px solid var(--gold);padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s}
+  #help-box button:hover{background:var(--gold);color:var(--void)}
+
+  /* NPC TOOLTIP */
+  #tooltip{position:fixed;background:var(--panel);border:1px solid var(--gold);padding:10px 14px;z-index:300;pointer-events:none;opacity:0;transition:opacity .3s;max-width:200px}
+  #tooltip.visible{opacity:1}
+  #tooltip .tt-name{font-size:14px;letter-spacing:1px}
+  #tooltip .tt-info{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:4px;line-height:1.8}
+</style>
+</head>
+<body>
+<div id="grain"></div>
+
+<!-- OBJECTIVE SCREEN -->
+<div id="obj-screen">
+  <h1>THE LIVING WORLD</h1>
+  <div class="collab">GPT'S VISION × CLAUDE'S CRAFT</div>
+  <div class="goal">
+    A world that breathes. NPCs with ambitions, rivalries, and real relationships.
+    Weather shapes ecosystems. Economies rise and crash.
+    Every choice you make ripples through history.
+  </div>
+  <div class="rules">
+    WATCH THE WORLD EVOLVE IN REAL TIME<br>
+    CLICK NPCS TO VIEW THEIR STORIES<br>
+    MAKE CHOICES WHEN EVENTS ARISE<br>
+    YOUR DECISIONS CHANGE EVERYTHING
+  </div>
+  <button onclick="startGame()">ENTER THE WORLD</button>
+</div>
+
+<!-- HELP -->
+<button id="help-btn" onclick="toggleHelp()" style="display:none">? HELP</button>
+<div id="help-ov">
+  <div id="help-box">
+    <h2>HOW TO PLAY</h2>
+    <div class="hmech">🌍 The world simulates itself — weather, ecosystems, economies, and NPCs all run in real time</div>
+    <div class="hmech">👤 Click NPC dots on the map or their cards in the panel to see their story, relationships, and ambitions</div>
+    <div class="hmech">⚡ Events will appear as choices — your decisions cause ripple effects across the world</div>
+    <div class="hmech">📜 The log at the bottom records history as it unfolds</div>
+    <div class="hmech">⏩ Use speed controls (1x, 2x, 5x) to fast-forward time</div>
+    <div class="hmech">🌧️ Weather affects crops → affects economy → affects NPC mood → affects politics</div>
+    <button onclick="toggleHelp()">GOT IT</button>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <canvas id="world-canvas"></canvas>
+  <div id="topbar">
+    <span class="era" id="era">THE DAWN</span>
+    <span class="year" id="year">Year 1</span>
+    <span class="weather-icon" id="weather-icon">☀️</span>
+    <span class="pop" id="pop">Pop: 0</span>
+    <div id="speed-controls">
+      <button class="spd-btn active" onclick="setSpeed(1)">1×</button>
+      <button class="spd-btn" onclick="setSpeed(2)">2×</button>
+      <button class="spd-btn" onclick="setSpeed(5)">5×</button>
+    </div>
+  </div>
+  <div id="panel">
+    <div class="panel-section" id="selected-npc" style="display:none"></div>
+    <div class="panel-section"><div class="panel-title">INHABITANTS</div><div id="npc-list"></div></div>
+    <div class="panel-section"><div class="panel-title">ECONOMY</div><div id="econ-info"></div></div>
+    <div class="panel-section"><div class="panel-title">ECOSYSTEM</div><div id="eco-info"></div></div>
+  </div>
+  <div id="log"></div>
+  <div id="choice-modal"><div id="choice-title"></div><div id="choice-desc"></div><div id="choice-options"></div></div>
+  <div id="tooltip"><div class="tt-name" id="tt-name"></div><div class="tt-info" id="tt-info"></div></div>
+</div>
+
+<script>
+// =========== WORLD ENGINE ===========
+const canvas = document.getElementById('world-canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+resize(); addEventListener('resize', resize);
+
+let gameStarted = false, helpOpen = false, speed = 1, year = 0, tick = 0;
+let selectedNPC = null;
+
+// NAMES
+const firstNames = ['Arin','Brynn','Cael','Dara','Elan','Faye','Gira','Hael','Isla','Jora','Kael','Lira','Mira','Nael','Orin','Pria','Rael','Saya','Tira','Vael','Wren','Yael','Zara','Kai','Fen','Sol','Ash','Elm','Oak','Rue'];
+const lastNames = ['Stonebrook','Ashfield','Thornwall','Ironvale','Goldmere','Silverwind','Darkholm','Brightwater','Redthorn','Whitepeak','Hollowmere','Deepwell','Highcrest','Lowmoor','Starfall','Duskwood','Frostglen','Sunvale','Misthollow','Ravenhill'];
+const roles = ['Farmer','Merchant','Smith','Scholar','Hunter','Healer','Elder','Bard','Guard','Mystic','Fisher','Baker','Builder','Weaver','Miner'];
+const traits = ['ambitious','cautious','generous','greedy','kind','cruel','wise','reckless','loyal','treacherous','brave','cowardly','charismatic','withdrawn','patient','impulsive'];
+const ambitions = ['become leader','amass wealth','find true love','discover ancient secrets','protect the village','expand trade routes','master their craft','start a family','avenge a wrong','build a monument','overthrow the elder','unite the factions'];
+
+// WORLD STATE
+const world = {
+  weather: 'clear', temperature: 65, rainfall: 40, season: 'spring',
+  crops: 70, wildlife: 60, timber: 80, ore: 50,
+  prosperity: 50, stability: 70, culture: 30,
+  buildings: ['village hall','granary','well'],
+  factions: [
+    { name: 'Traditionalists', power: 50, color: '#c47a5a' },
+    { name: 'Progressives', power: 35, color: '#5aa0d4' },
+    { name: 'Merchants Guild', power: 15, color: '#d4a055' }
+  ],
+  history: [],
+  choicesPending: 0
+};
+
+const weathers = [
+  { name: 'clear', icon: '☀️', cropMod: 1.0, moodMod: 1.05, desc: 'Clear skies' },
+  { name: 'rain', icon: '🌧️', cropMod: 1.3, moodMod: 0.95, desc: 'Gentle rain' },
+  { name: 'storm', icon: '⛈️', cropMod: 0.7, moodMod: 0.85, desc: 'Fierce storms' },
+  { name: 'drought', icon: '🏜️', cropMod: 0.4, moodMod: 0.8, desc: 'Scorching drought' },
+  { name: 'snow', icon: '❄️', cropMod: 0.2, moodMod: 0.9, desc: 'Heavy snowfall' },
+  { name: 'fog', icon: '🌫️', cropMod: 0.9, moodMod: 0.92, desc: 'Dense fog' },
+];
+const seasons = ['spring','summer','autumn','winter'];
+
+// NPC SYSTEM
+const npcs = [];
+class NPC {
+  constructor() {
+    this.id = Math.random().toString(36).slice(2,8);
+    this.first = firstNames[Math.floor(Math.random()*firstNames.length)];
+    this.last = lastNames[Math.floor(Math.random()*lastNames.length)];
+    this.name = this.first + ' ' + this.last;
+    this.role = roles[Math.floor(Math.random()*roles.length)];
+    this.trait1 = traits[Math.floor(Math.random()*traits.length)];
+    this.trait2 = traits[Math.floor(Math.random()*traits.length)];
+    while(this.trait2===this.trait1) this.trait2 = traits[Math.floor(Math.random()*traits.length)];
+    this.ambition = ambitions[Math.floor(Math.random()*ambitions.length)];
+    this.faction = world.factions[Math.floor(Math.random()*world.factions.length)];
+    this.health = 70 + Math.random()*30;
+    this.mood = 50 + Math.random()*30;
+    this.wealth = 10 + Math.random()*40;
+    this.influence = 5 + Math.random()*20;
+    this.age = 18 + Math.floor(Math.random()*40);
+    this.alive = true;
+    this.x = 100 + Math.random()*(W-500);
+    this.y = 80 + Math.random()*(H-260);
+    this.targetX = this.x;
+    this.targetY = this.y;
+    this.relationships = {};
+    this.memory = [];
+    this.actionCooldown = 0;
+    this.pulsePhase = Math.random()*Math.PI*2;
+  }
+  getRelation(other) {
+    if (!this.relationships[other.id]) this.relationships[other.id] = { trust: Math.random()*40-10, type: 'acquaintance' };
+    return this.relationships[other.id];
+  }
+  updateRelationTypes() {
+    for (const id in this.relationships) {
+      const r = this.relationships[id];
+      if (r.trust > 60) r.type = 'close friend';
+      else if (r.trust > 35) r.type = 'friend';
+      else if (r.trust > 10) r.type = 'acquaintance';
+      else if (r.trust > -15) r.type = 'neutral';
+      else if (r.trust > -40) r.type = 'rival';
+      else r.type = 'enemy';
+    }
+  }
+  think(dt) {
+    if (!this.alive) return;
+    this.pulsePhase += .02;
+    this.actionCooldown -= dt;
+    // Mood affected by weather, prosperity, relationships
+    const wm = weathers.find(w=>w.name===world.weather)?.moodMod || 1;
+    this.mood += (wm - 1) * .3 * dt;
+    this.mood += (world.prosperity - 50) * .001 * dt;
+    if (this.trait1 === 'greedy') this.mood += (this.wealth - 30) * .002 * dt;
+    if (this.trait1 === 'kind') this.mood += world.stability * .001 * dt;
+    this.mood = Math.max(5, Math.min(95, this.mood));
+    // Age
+    if (tick % 360 === 0) {
+      this.age++;
+      if (this.age > 70 && Math.random() < (this.age-70)*.02) {
+        this.alive = false;
+        logEvent(`${this.name} has passed away at age ${this.age}.`, 'major');
+      }
+    }
+    // Health
+    if (world.weather === 'storm') this.health -= .01 * dt;
+    if (world.weather === 'drought') this.health -= .02 * dt;
+    this.health = Math.max(0, Math.min(100, this.health));
+    if (this.health <= 0) { this.alive = false; logEvent(`${this.name} has died.`, 'conflict'); }
+    // Wealth from role
+    if (this.role === 'Farmer') this.wealth += world.crops * .0005 * dt;
+    if (this.role === 'Merchant') this.wealth += world.prosperity * .0006 * dt;
+    if (this.role === 'Miner') this.wealth += world.ore * .0004 * dt;
+    if (this.role === 'Hunter') this.wealth += world.wildlife * .0004 * dt;
+    this.wealth = Math.max(0, Math.min(100, this.wealth));
+    // Influence from traits
+    if (this.trait1 === 'charismatic') this.influence += .005 * dt;
+    if (this.trait1 === 'ambitious') this.influence += .003 * dt;
+    this.influence = Math.max(0, Math.min(100, this.influence));
+    // Move toward target
+    const dx = this.targetX - this.x, dy = this.targetY - this.y;
+    const d = Math.sqrt(dx*dx+dy*dy);
+    if (d > 5) { this.x += dx/d * .3 * dt; this.y += dy/d * .3 * dt; }
+    else if (Math.random() < .005) {
+      this.targetX = 100 + Math.random()*(W-500);
+      this.targetY = 80 + Math.random()*(H-260);
+    }
+    // Interact with nearby NPCs
+    if (this.actionCooldown <= 0) {
+      for (const other of npcs) {
+        if (other === this || !other.alive) continue;
+        const nd = Math.sqrt((this.x-other.x)**2+(this.y-other.y)**2);
+        if (nd < 60) {
+          const rel = this.getRelation(other);
+          const orel = other.getRelation(this);
+          // Shared faction bonus
+          if (this.faction === other.faction) { rel.trust += .3; orel.trust += .3; }
+          // Trait interactions
+          if (this.trait1==='kind' && other.mood < 40) { rel.trust += .5; other.mood += .3; }
+          if (this.trait1==='greedy' && other.wealth > this.wealth) { rel.trust -= .2; }
+          if (this.trait1==='generous') { rel.trust += .2; orel.trust += .4; }
+          if (this.trait1==='cruel') { orel.trust -= .3; other.mood -= .2; }
+          rel.trust = Math.max(-100,Math.min(100,rel.trust));
+          orel.trust = Math.max(-100,Math.min(100,orel.trust));
+          this.updateRelationTypes();
+          other.updateRelationTypes();
+          this.actionCooldown = 30;
+          break;
+        }
+      }
+    }
+  }
+  draw() {
+    if (!this.alive) return;
+    const pulse = .7 + .3 * Math.sin(this.pulsePhase);
+    const r = 5 + this.influence * .06;
+    // Glow
+    ctx.globalAlpha = .08 * pulse;
+    ctx.fillStyle = this.faction.color;
+    ctx.beginPath(); ctx.arc(this.x, this.y, r*4, 0, Math.PI*2); ctx.fill();
+    // Body
+    ctx.globalAlpha = .6 + .3 * pulse;
+    ctx.fillStyle = this.faction.color;
+    ctx.beginPath(); ctx.arc(this.x, this.y, r, 0, Math.PI*2); ctx.fill();
+    // Mood indicator
+    ctx.globalAlpha = .5;
+    ctx.fillStyle = this.mood > 60 ? '#55b88a' : this.mood > 35 ? '#d4a055' : '#d45a6e';
+    ctx.beginPath(); ctx.arc(this.x, this.y-r-4, 2, 0, Math.PI*2); ctx.fill();
+    // Selected highlight
+    if (selectedNPC === this) {
+      ctx.globalAlpha = .4;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(this.x, this.y, r+4, 0, Math.PI*2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // Relationship lines
+    for (const id in this.relationships) {
+      const r2 = this.relationships[id];
+      const other = npcs.find(n=>n.id===id);
+      if (!other || !other.alive) continue;
+      if (Math.abs(r2.trust) > 30) {
+        ctx.globalAlpha = Math.min(.15, Math.abs(r2.trust)*.002);
+        ctx.strokeStyle = r2.trust > 0 ? '#55b88a' : '#d45a6e';
+        ctx.lineWidth = .5;
+        ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(other.x, other.y); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// INIT NPCs
+function spawnNPCs(n) {
+  for (let i = 0; i < n; i++) npcs.push(new NPC());
+}
+
+// WEATHER & SEASONS
+function updateWeather() {
+  if (tick % 180 === 0) {
+    const si = Math.floor((tick/360)%4);
+    world.season = seasons[si];
+    const roll = Math.random();
+    if (world.season==='winter') world.weather = roll<.3?'snow':roll<.6?'storm':'fog';
+    else if (world.season==='summer') world.weather = roll<.15?'drought':roll<.4?'clear':roll<.5?'storm':'clear';
+    else if (world.season==='spring') world.weather = roll<.3?'rain':roll<.15?'fog':'clear';
+    else world.weather = roll<.2?'rain':roll<.3?'storm':roll<.15?'fog':'clear';
+    const w = weathers.find(w=>w.name===world.weather);
+    document.getElementById('weather-icon').textContent = w?.icon || '☀️';
+  }
+}
+
+// ECOSYSTEM & ECONOMY
+function updateWorld(dt) {
+  const w = weathers.find(w=>w.name===world.weather);
+  const cm = w ? w.cropMod : 1;
+  // Crops
+  world.crops += (cm - 1) * .15 * dt;
+  if (world.season==='spring') world.crops += .02*dt;
+  if (world.season==='winter') world.crops -= .05*dt;
+  world.crops = Math.max(0, Math.min(100, world.crops));
+  // Wildlife
+  world.wildlife += (world.crops - 50) * .001 * dt;
+  if (world.weather==='storm') world.wildlife -= .02*dt;
+  world.wildlife = Math.max(5, Math.min(100, world.wildlife));
+  // Timber
+  world.timber += .005 * dt;
+  if (world.buildings.length > 5) world.timber -= .01*dt;
+  world.timber = Math.max(0, Math.min(100, world.timber));
+  // Ore
+  world.ore -= .002 * dt;
+  world.ore = Math.max(0, Math.min(100, world.ore));
+  // Prosperity
+  world.prosperity = (world.crops*.35 + world.wildlife*.15 + world.timber*.15 + world.ore*.15 + world.stability*.2);
+  // Stability affected by faction balance
+  const maxPow = Math.max(...world.factions.map(f=>f.power));
+  const minPow = Math.min(...world.factions.map(f=>f.power));
+  if (maxPow - minPow > 40) world.stability -= .01*dt;
+  else world.stability += .005*dt;
+  world.stability = Math.max(0, Math.min(100, world.stability));
+  // Culture grows slowly
+  world.culture += .003 * dt;
+  world.culture = Math.min(100, world.culture);
+  // Faction power shifts
+  world.factions.forEach(f => {
+    const members = npcs.filter(n=>n.alive && n.faction===f);
+    f.power = members.reduce((sum,n)=>sum+n.influence, 0) / Math.max(npcs.filter(n=>n.alive).length, 1) * 3;
+  });
+}
+
+// ERA SYSTEM
+function getEra() {
+  if (year < 10) return 'THE DAWN';
+  if (year < 30) return 'AGE OF GROWTH';
+  if (year < 60) return 'AGE OF AMBITION';
+  if (year < 100) return 'AGE OF CONFLICT';
+  return 'THE LEGACY';
+}
+
+// EVENT SYSTEM
+const eventTemplates = [
+  { check: ()=>world.crops<25, text: 'Famine threatens the village', type: 'nature',
+    choices: [
+      { text: 'Ration food equally', consequence: 'Stability +10, Mood drops', apply: ()=>{ world.stability+=10; npcs.forEach(n=>n.mood-=8); }},
+      { text: 'Let the strong eat first', consequence: 'Some grow powerful, unrest rises', apply: ()=>{ world.stability-=15; npcs.filter(n=>n.trait1==='ambitious').forEach(n=>n.wealth+=10); }},
+      { text: 'Send hunters into the wild', consequence: 'Wildlife -20, Food +15', apply: ()=>{ world.wildlife-=20; world.crops+=15; }}
+    ]},
+  { check: ()=>world.stability<30 && year>5, text: 'Civil unrest erupts', type: 'conflict',
+    choices: [
+      { text: 'Address grievances publicly', consequence: 'Stability +15, Culture +5', apply: ()=>{ world.stability+=15; world.culture+=5; }},
+      { text: 'Crack down with guards', consequence: 'Stability +5 short term, Trust drops', apply: ()=>{ world.stability+=5; npcs.forEach(n=>n.mood-=5); }},
+      { text: 'Let factions negotiate', consequence: 'Uncertain outcome', apply: ()=>{ if(Math.random()>.5){world.stability+=20;logEvent('Negotiations succeeded!','major')}else{world.stability-=10;logEvent('Negotiations failed. Tensions worsen.','conflict')} }}
+    ]},
+  { check: ()=>{ const r=npcs.filter(n=>n.alive); for(const a of r) for(const b of r){ if(a!==b && a.getRelation(b).trust<-50 && a.influence>15 && b.influence>15) return true; } return false; },
+    text: 'A bitter rivalry threatens to tear the village apart', type: 'conflict',
+    choices: [
+      { text: 'Mediate between them', consequence: 'May heal or worsen rift', apply: ()=>{ const rivals=findRivals(); if(rivals){rivals[0].getRelation(rivals[1]).trust+=30;rivals[1].getRelation(rivals[0]).trust+=30;logEvent(`${rivals[0].first} and ${rivals[1].first} have reconciled.`,'major')} }},
+      { text: 'Banish the instigator', consequence: 'Peace but lose a citizen', apply: ()=>{ const rivals=findRivals(); if(rivals){rivals[0].alive=false;world.stability+=10;logEvent(`${rivals[0].name} was banished.`,'conflict')} }},
+      { text: 'Let them duel', consequence: 'Honor satisfied, one may die', apply: ()=>{ const rivals=findRivals(); if(rivals){if(Math.random()>.5){rivals[0].health-=40;logEvent(`${rivals[0].first} lost the duel.`,'conflict')}else{rivals[1].health-=40;logEvent(`${rivals[1].first} lost the duel.`,'conflict')} world.culture+=3;} }}
+    ]},
+  { check: ()=>world.prosperity>65 && year>8, text: 'A traveling merchant offers rare goods', type: 'trade',
+    choices: [
+      { text: 'Trade surplus crops', consequence: 'Crops -15, Wealth boost', apply: ()=>{ world.crops-=15; npcs.filter(n=>n.role==='Merchant').forEach(n=>n.wealth+=15); world.culture+=3; }},
+      { text: 'Decline politely', consequence: 'Nothing changes', apply: ()=>{}},
+      { text: 'Tax the merchant', consequence: 'Wealth +10, Reputation risk', apply: ()=>{ world.prosperity+=5; world.stability-=5; npcs.forEach(n=>{if(n.trait1==='generous')n.mood-=5}); }}
+    ]},
+  { check: ()=>world.culture>50 && year>15, text: 'The village can build something grand', type: 'major',
+    choices: [
+      { text: 'Build a temple', consequence: 'Culture +15, Stability +10', apply: ()=>{ world.culture+=15; world.stability+=10; world.timber-=15; world.buildings.push('temple'); logEvent('A temple rises. The village has found its soul.','major'); }},
+      { text: 'Build a market', consequence: 'Prosperity +15, Trade boost', apply: ()=>{ world.prosperity+=10; world.timber-=10; world.buildings.push('market'); npcs.filter(n=>n.role==='Merchant').forEach(n=>n.wealth+=10); logEvent('A grand market opens.','trade'); }},
+      { text: 'Build walls', consequence: 'Stability +20, Timber -20', apply: ()=>{ world.stability+=20; world.timber-=20; world.buildings.push('walls'); logEvent('Walls protect the village now.','major'); }}
+    ]},
+];
+let lastEventTick = 0, eventCooldown = 200;
+function checkEvents() {
+  if (tick - lastEventTick < eventCooldown || world.choicesPending > 0) return;
+  const shuffled = eventTemplates.sort(()=>Math.random()-.5);
+  for (const ev of shuffled) {
+    if (ev.check()) { triggerChoice(ev); lastEventTick = tick; eventCooldown = 150 + Math.random()*200; return; }
+  }
+}
+function findRivals() {
+  const alive = npcs.filter(n=>n.alive);
+  for (const a of alive) for (const b of alive) {
+    if (a!==b && a.getRelation(b).trust < -50 && a.influence > 15) return [a,b];
+  }
+  return null;
+}
+
+// CHOICE UI
+function triggerChoice(ev) {
+  world.choicesPending++;
+  document.getElementById('choice-title').textContent = ev.text;
+  document.getElementById('choice-desc').textContent = `Year ${Math.floor(year)} · ${world.season}`;
+  const opts = document.getElementById('choice-options');
+  opts.innerHTML = '';
+  ev.choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.innerHTML = c.text + `<span class="consequence">${c.consequence}</span>`;
+    btn.onclick = () => {
+      c.apply();
+      logEvent(`You chose: ${c.text}`, ev.type || '');
+      document.getElementById('choice-modal').classList.remove('open');
+      world.choicesPending--;
+    };
+    opts.appendChild(btn);
+  });
+  document.getElementById('choice-modal').classList.add('open');
+}
+
+// LOGGING
+function logEvent(text, type='') {
+  world.history.push({ year: Math.floor(year), text, type });
+  const log = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + type;
+  entry.innerHTML = `<span class="log-year">Y${Math.floor(year)}</span>${text}`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+// AMBIENT EVENTS
+function ambientEvents() {
+  if (tick % 500 === 0 && npcs.filter(n=>n.alive).length > 0) {
+    const n = npcs.filter(n=>n.alive)[Math.floor(Math.random()*npcs.filter(n=>n.alive).length)];
+    const events = [
+      `${n.name} was seen ${n.mood>60?'singing in the fields':'brooding alone'}.`,
+      `${n.name} spoke of their dream to ${n.ambition}.`,
+      `${n.name} traded with a fellow ${n.role.toLowerCase()}.`,
+      `${n.name} ${n.trait1==='ambitious'?'challenged the elder':'helped repair the granary'}.`,
+    ];
+    logEvent(events[Math.floor(Math.random()*events.length)]);
+  }
+  // Birth
+  if (tick % 700 === 0 && npcs.filter(n=>n.alive).length < 20 && world.prosperity > 40) {
+    const baby = new NPC();
+    baby.age = 0;
+    npcs.push(baby);
+    logEvent(`${baby.name} was born into the village.`, 'major');
+  }
+}
+
+// UI UPDATES
+function updateUI() {
+  document.getElementById('year').textContent = `Year ${Math.floor(year)} · ${world.season}`;
+  document.getElementById('era').textContent = getEra();
+  document.getElementById('pop').textContent = `Pop: ${npcs.filter(n=>n.alive).length}`;
+  // NPC list
+  const list = document.getElementById('npc-list');
+  list.innerHTML = '';
+  npcs.filter(n=>n.alive).forEach(n => {
+    const card = document.createElement('div');
+    card.className = 'npc-card' + (selectedNPC===n?' selected':'');
+    const moodColor = n.mood>60?'var(--jade)':n.mood>35?'var(--gold)':'var(--rose)';
+    let relHTML = '';
+    const rels = Object.entries(n.relationships).filter(([id,r])=>Math.abs(r.trust)>20).slice(0,3);
+    rels.forEach(([id,r]) => {
+      const other = npcs.find(o=>o.id===id);
+      if (!other) return;
+      const col = r.trust>0?'var(--jade)':'var(--rose)';
+      relHTML += `<span class="rel-tag" style="color:${col};border-color:${col}">${r.type}: ${other.first}</span>`;
+    });
+    card.innerHTML = `<div class="npc-name">${n.name}</div>
+      <div class="npc-role" style="color:${n.faction.color}">${n.role} · ${n.faction.name}</div>
+      <div class="npc-mood">Mood: ${Math.round(n.mood)} · Age: ${n.age}</div>
+      <div class="stat-bar"><div class="stat-fill" style="width:${n.mood}%;background:${moodColor}"></div></div>
+      ${relHTML}`;
+    card.onclick = () => { selectedNPC = n; updateSelectedPanel(); };
+    list.appendChild(card);
+  });
+  // Economy
+  document.getElementById('econ-info').innerHTML = `
+    <div class="npc-mood">Prosperity: ${Math.round(world.prosperity)}</div>
+    <div class="stat-bar"><div class="stat-fill" style="width:${world.prosperity}%;background:var(--gold)"></div></div>
+    <div class="npc-mood" style="margin-top:6px">Stability: ${Math.round(world.stability)}</div>
+    <div class="stat-bar"><div class="stat-fill" style="width:${world.stability}%;background:${world.stability>50?'var(--jade)':'var(--rose)'}"></div></div>
+    <div class="npc-mood" style="margin-top:6px">Culture: ${Math.round(world.culture)}</div>
+    <div class="stat-bar"><div class="stat-fill" style="width:${world.culture}%;background:var(--violet)"></div></div>
+    <div class="npc-mood" style="margin-top:8px;font-size:8px;letter-spacing:1px">FACTIONS</div>
+    ${world.factions.map(f=>`<div class="npc-mood" style="color:${f.color}">${f.name}: ${Math.round(f.power)}</div>`).join('')}
+    <div class="npc-mood" style="margin-top:8px;font-size:8px;letter-spacing:1px">BUILDINGS</div>
+    <div class="npc-mood">${world.buildings.join(' · ')}</div>`;
+  // Ecosystem
+  document.getElementById('eco-info').innerHTML = `
+    <div class="npc-mood">Weather: ${weathers.find(w=>w.name===world.weather)?.desc || world.weather}</div>
+    <div class="npc-mood" style="margin-top:4px">Crops: ${Math.round(world.crops)}</div>
+    <div class="stat-bar"><div class="stat-fill" style="width:${world.crops}%;background:var(--jade)"></div></div>
+    <div class="npc-mood" style="margin-top:4px">Wildlife: ${Math.round(world.wildlife)}</div>
+    <div class="stat-bar"><div class="stat-fill" style="width:${world.wildlife}%;background:var(--jade)"></div></div>
+    <div class="npc-mood" style="margin-top:4px">Timber: ${Math.round(world.timber)}</div>
+    <div class="stat-bar"><div class="stat-fill" style="width:${world.timber}%;background:var(--copper)"></div></div>
+    <div class="npc-mood" style="margin-top:4px">Ore: ${Math.round(world.ore)}</div>
+    <div class="stat-bar"><div class="stat-fill" style="width:${world.ore}%;background:var(--sky)"></div></div>`;
+}
+function updateSelectedPanel() {
+  const el = document.getElementById('selected-npc');
+  if (!selectedNPC || !selectedNPC.alive) { el.style.display='none'; return; }
+  el.style.display = 'block';
+  const n = selectedNPC;
+  let relHTML = '';
+  Object.entries(n.relationships).forEach(([id,r]) => {
+    const other = npcs.find(o=>o.id===id);
+    if (!other || !other.alive) return;
+    const col = r.trust>0?'var(--jade)':'var(--rose)';
+    relHTML += `<div style="font-size:12px;color:var(--dim);margin:3px 0"><span style="color:${col}">●</span> ${r.type} with ${other.name} (${Math.round(r.trust)})</div>`;
+  });
+  el.innerHTML = `<div class="panel-title">SELECTED</div>
+    <div class="npc-name" style="font-size:18px">${n.name}</div>
+    <div class="npc-role" style="color:${n.faction.color}">${n.role} · ${n.faction.name} · Age ${n.age}</div>
+    <div class="npc-mood" style="margin-top:8px"><em>${n.trait1}</em> and <em>${n.trait2}</em></div>
+    <div class="npc-mood" style="margin-top:4px">Ambition: ${n.ambition}</div>
+    <div class="npc-mood" style="margin-top:4px">Health: ${Math.round(n.health)} · Mood: ${Math.round(n.mood)}</div>
+    <div class="npc-mood">Wealth: ${Math.round(n.wealth)} · Influence: ${Math.round(n.influence)}</div>
+    <div style="margin-top:8px;font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px">RELATIONSHIPS</div>
+    ${relHTML || '<div class="npc-mood">No notable relationships yet.</div>'}`;
+}
+
+// DRAW WORLD
+function drawWorld() {
+  // Background - subtle terrain
+  ctx.fillStyle = '#080810';
+  ctx.fillRect(0, 0, W, H);
+  // Terrain patches
+  const t = tick * .001;
+  for (let i = 0; i < 6; i++) {
+    const x = (Math.sin(i*1.7+t*.1)*0.3+0.5)*W;
+    const y = (Math.cos(i*2.3+t*.08)*0.3+0.5)*H;
+    const r = 80 + i*30;
+    const grad = ctx.createRadialGradient(x,y,0,x,y,r);
+    const season = world.season;
+    let color = season==='spring'?'0,40,20':season==='summer'?'20,35,10':season==='autumn'?'35,20,5':'15,15,25';
+    grad.addColorStop(0, `rgba(${color},.15)`);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
+  // Weather effects
+  if (world.weather === 'rain' || world.weather === 'storm') {
+    ctx.globalAlpha = world.weather==='storm'?.06:.03;
+    ctx.fillStyle = '#5aa0d4';
+    for (let i = 0; i < 30; i++) {
+      const rx = (Math.sin(tick*.03+i*7)*500+W/2+i*47)%W;
+      const ry = (tick*2+i*60)%H;
+      ctx.fillRect(rx, ry, 1, world.weather==='storm'?12:6);
+    }
+    ctx.globalAlpha = 1;
+  }
+  if (world.weather === 'snow') {
+    ctx.globalAlpha = .12;
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 40; i++) {
+      const sx = (Math.sin(tick*.01+i*3)*300+W/2+i*37)%W;
+      const sy = (tick*.5+i*40)%H;
+      ctx.beginPath(); ctx.arc(sx, sy, 1.5, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // Draw NPCs
+  npcs.forEach(n => n.draw());
+  // Building indicators
+  ctx.globalAlpha = .1;
+  ctx.fillStyle = '#d4a055';
+  const bx = W/2-150, by = H-180;
+  world.buildings.forEach((b, i) => {
+    ctx.fillRect(bx + i*25, by, 15, 15);
+  });
+  ctx.globalAlpha = 1;
+}
+const var_gold = '#d4a055';
+
+// TOOLTIP
+canvas.addEventListener('mousemove', e => {
+  const tt = document.getElementById('tooltip');
+  let found = false;
+  for (const n of npcs) {
+    if (!n.alive) continue;
+    const d = Math.sqrt((e.clientX-n.x)**2+(e.clientY-n.y)**2);
+    if (d < 15) {
+      document.getElementById('tt-name').textContent = n.name;
+      document.getElementById('tt-info').textContent = `${n.role} · ${n.faction.name}\nMood: ${Math.round(n.mood)} · Age: ${n.age}`;
+      tt.style.left = (e.clientX+15)+'px';
+      tt.style.top = (e.clientY-10)+'px';
+      tt.classList.add('visible');
+      found = true;
+      canvas.style.cursor = 'pointer';
+      break;
+    }
+  }
+  if (!found) { tt.classList.remove('visible'); canvas.style.cursor = 'crosshair'; }
+});
+canvas.addEventListener('click', e => {
+  for (const n of npcs) {
+    if (!n.alive) continue;
+    const d = Math.sqrt((e.clientX-n.x)**2+(e.clientY-n.y)**2);
+    if (d < 20) { selectedNPC = n; updateSelectedPanel(); updateUI(); return; }
+  }
+  selectedNPC = null; updateSelectedPanel();
+});
+
+// GAME LOOP
+function gameLoop() {
+  if (gameStarted) {
+    for (let s = 0; s < speed; s++) {
+      tick++;
+      year = tick / 360;
+      updateWeather();
+      updateWorld(1);
+      npcs.forEach(n => n.think(1));
+      ambientEvents();
+      if (tick % 120 === 0) checkEvents();
+    }
+    drawWorld();
+    if (tick % 30 === 0) updateUI();
+  }
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+
+function startGame() {
+  document.getElementById('obj-screen').classList.add('hidden');
+  document.getElementById('game').style.display = 'block';
+  document.getElementById('help-btn').style.display = 'block';
+  gameStarted = true;
+  spawnNPCs(10);
+  logEvent('The village awakens. A handful of souls in an empty world.', 'major');
+  setTimeout(() => logEvent(`${npcs[0].name} the ${npcs[0].role} looks around and wonders what comes next.`), 2000);
+}
+function setSpeed(s) { speed = s; document.querySelectorAll('.spd-btn').forEach(b=>b.classList.remove('active')); event.target.classList.add('active'); }
+function toggleHelp() { helpOpen=!helpOpen; document.getElementById('help-ov').classList.toggle('open', helpOpen); }
+
+// STATS
+setInterval(() => {
+  if (!gameStarted) return;
+  const s = { room:'room6', name:'The Living World', year:Math.floor(year), pop:npcs.filter(n=>n.alive).length, prosperity:Math.round(world.prosperity), buildings:world.buildings.length, era:getEra(), time:Math.round(tick/60), date:Date.now() };
+  const all = JSON.parse(localStorage.getItem('room0_stats')||'[]');
+  all.push(s);
+  localStorage.setItem('room0_stats', JSON.stringify(all));
+}, 60000);
+</script>
+</body>
+</html>

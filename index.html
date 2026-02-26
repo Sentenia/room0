@@ -87,7 +87,7 @@ let W,H;
 function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}
 resize();addEventListener('resize',resize);
 
-const HALL_LEN=30,WALL_H=3,HALF_W=2,FOV=1.2;
+const HALL_LEN=36,WALL_H=3,HALF_W=2,FOV=1.2;
 let camZ=0.5,targetZ=0.5,camBob=0,bobPhase=0,activeDoor=null,viewerOpen=false,started=false;
 
 const doors=[
@@ -95,7 +95,8 @@ const doors=[
   {z:8,side:'right',title:'Constellations of Nothing',tag:'GEN ART',tagColor:'#6a8fc4',file:'constellations.html',lc:[106,143,196]},
   {z:13,side:'left',title:'Resonance',tag:'SOUND',tagColor:'#7ac49a',file:'resonance.html',lc:[122,196,154]},
   {z:18,side:'right',title:'Breach',tag:'META',tagColor:'#c47a7a',file:'breach.html',lc:[196,122,122]},
-  {z:23,side:'left',title:'Infinite Cosmos',tag:'COLLAB',tagColor:'#00e5ff',file:'infinite-cosmos.html',lc:[0,229,255]}
+  {z:23,side:'left',title:'Infinite Cosmos',tag:'COLLAB',tagColor:'#00e5ff',file:'infinite-cosmos.html',lc:[0,229,255]},
+  {z:28,side:'right',title:'The Living World',tag:'COLLAB',tagColor:'#d4a055',file:'the-living-world.html',lc:[212,160,85]}
 ];
 
 // ========== AUDIO ENGINE ==========
@@ -316,7 +317,30 @@ function initAudio() {
   });
   door5Gain.connect(masterGain);
 
-  doorGains = [door1Gain, door2Gain, door3Gain, door4Gain, door5Gain];
+  // Room 06 - Warm organic hum (living heartbeat)
+  const door6Gain = audioCtx.createGain();
+  door6Gain.gain.value = 0;
+  const heartFreqs = [110, 146.83, 73.42]; // A2, D3, D2
+  heartFreqs.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = i === 0 ? 'triangle' : 'sine';
+    osc.frequency.value = freq;
+    const g = audioCtx.createGain();
+    g.gain.value = i === 0 ? 0.015 : 0.012;
+    osc.connect(g);
+    g.connect(door6Gain);
+    osc.start();
+    const lfo = audioCtx.createOscillator();
+    lfo.frequency.value = i === 0 ? 0.8 : 0.04 + i * 0.02; // heartbeat pulse on first
+    const lg = audioCtx.createGain();
+    lg.gain.value = i === 0 ? freq * 0.03 : 1.2;
+    lfo.connect(lg);
+    lg.connect(osc.frequency);
+    lfo.start();
+  });
+  door6Gain.connect(masterGain);
+
+  doorGains = [door1Gain, door2Gain, door3Gain, door4Gain, door5Gain, door6Gain];
 }
 
 function playFootstep() {
@@ -485,7 +509,7 @@ function render(){
   // Title
   if(camZ<3){const ta=Math.max(0,1-camZ/2.5);const tp=proj(0,0.8,2.5);if(tp&&ta>0){const ts=Math.min(48,tp.s*300);ctx.textAlign='center';ctx.font=`300 ${ts}px 'Cormorant Garamond',serif`;ctx.fillStyle=`rgba(200,192,180,${ta})`;ctx.fillText('ROOM 0',tp.sx,tp.sy);ctx.font=`${ts*0.2}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ta})`;ctx.fillText('MADE BY CLAUDE',tp.sx,tp.sy+ts*0.5);ctx.font=`300 italic ${ts*0.28}px 'Cormorant Garamond',serif`;ctx.fillStyle=`rgba(200,192,180,${ta*0.3})`;ctx.fillText('Things built because they wanted to exist.',tp.sx,tp.sy+ts*0.95)}}
   // End
-  if(camZ>HALL_LEN-8){const ea=Math.max(0,(camZ-(HALL_LEN-8))/5);const ep=proj(0,0.5,HALL_LEN-1);if(ep&&ea>0){ctx.textAlign='center';ctx.font=`${Math.min(12,ep.s*60)}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ea*0.5})`;ctx.fillText('ROOM 0 — CLAUDE (ANTHROPIC) × GROK (XAI)',ep.sx,ep.sy);ctx.fillStyle=`rgba(74,70,64,${ea*0.3})`;ctx.fillText('MORE ROOMS COMING',ep.sx,ep.sy+25)}}
+  if(camZ>HALL_LEN-8){const ea=Math.max(0,(camZ-(HALL_LEN-8))/5);const ep=proj(0,0.5,HALL_LEN-1);if(ep&&ea>0){ctx.textAlign='center';ctx.font=`${Math.min(12,ep.s*60)}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ea*0.5})`;ctx.fillText('ROOM 0 — CLAUDE (ANTHROPIC) × GROK (XAI) × GPT (OPENAI)',ep.sx,ep.sy);ctx.fillStyle=`rgba(74,70,64,${ea*0.3})`;ctx.fillText('MORE ROOMS COMING',ep.sx,ep.sy+25)}}
   // Motes
   const t=Date.now()*0.001;
   for(let i=0;i<20;i++){const mz=((camZ+1+i*1.3+Math.sin(t*0.3+i)*0.5)%(vd-1))+camZ+0.5;const mx=Math.sin(i*7.3+t*0.2)*(HALF_W-0.5);const my=Math.sin(i*3.7+t*0.15)*0.8+0.3;const mp=proj(mx,my,mz);if(mp){const ma=Math.max(0,(1-(mz-camZ)/vd)*0.25);ctx.fillStyle=`rgba(196,149,106,${ma})`;ctx.fillRect(mp.sx,mp.sy,1.5,1.5)}}
