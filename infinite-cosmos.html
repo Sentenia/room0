@@ -182,6 +182,33 @@ canvas.addEventListener('touchstart',e=>{if(!gameStarted)return;e.preventDefault
 canvas.addEventListener('touchmove',e=>{e.preventDefault();if(e.touches.length===1&&dragging){const w=s2w(e.touches[0].clientX,e.touches[0].clientY);if(!activePow)for(let i=0;i<2;i++)if(particles.length<MAX_P)particles.push(new Particle(w.x+(Math.random()-.5)*20,w.y+(Math.random()-.5)*20,0,0,.4))}else if(e.touches.length===2){const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY,nd=Math.sqrt(dx*dx+dy*dy);cam.targetZoom*=nd/(touchDist||nd);cam.targetZoom=Math.max(.01,Math.min(cam.targetZoom,50));touchDist=nd}});
 canvas.addEventListener('touchend',()=>{dragging=false});
 document.addEventListener('keydown',e=>{if(!gameStarted)return;if(e.key==='1')activatePower(1);if(e.key==='2')activatePower(2);if(e.key==='3')activatePower(3);if(e.key===' '){e.preventDefault();if(activePow){const w=s2w(W/2,H/2);usePower(w.x,w.y)}}if(e.key==='Escape'&&helpOpen)toggleHelp()});
+
+// === FRAGMENT SYSTEM ===
+function getFragments(){return JSON.parse(localStorage.getItem('room0_fragments')||'{}')}
+function hasFragment(n){return !!getFragments()['f'+n]}
+function awardFragment(n,name){
+  if(hasFragment(n))return false;
+  const f=getFragments();f['f'+n]={name,date:Date.now()};
+  localStorage.setItem('room0_fragments',JSON.stringify(f));
+  showFragmentEarned(n,name);
+  return true;
+}
+function showFragmentEarned(n,name){
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(4,4,8,.95);border:1px solid #c4956a;padding:30px 40px;z-index:9999;text-align:center;opacity:0;transition:opacity 1s;pointer-events:none';
+  d.innerHTML='<div style="font-family:Cormorant Garamond,serif;font-size:28px;color:#c4956a;letter-spacing:4px;margin-bottom:8px">FRAGMENT '+n+' / 7</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#5a564f;letter-spacing:2px;margin-bottom:12px">'+name.toUpperCase()+'</div><div style="font-size:32px;margin:10px 0">◆</div><div style="font-family:Cormorant Garamond,serif;font-size:14px;color:#c8c0b4;font-style:italic">The corridor remembers.</div>';
+  document.body.appendChild(d);
+  requestAnimationFrame(()=>d.style.opacity='1');
+  setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),1000)},4000);
+}
+
+// Fragment: Complete all 5 missions
+let fragCheck5 = setInterval(()=>{
+  if(currentMission >= 5 && !hasFragment(5)){
+    awardFragment(5,'The Cosmos');
+    clearInterval(fragCheck5);
+  }
+},3000);
 </script>
 </body>
 </html>

@@ -519,6 +519,58 @@ setInterval(()=>{
   all.push(s);
   localStorage.setItem('room0_stats',JSON.stringify(all));
 },60000);
+
+// === FRAGMENT SYSTEM ===
+function getFragments(){return JSON.parse(localStorage.getItem('room0_fragments')||'{}')}
+function hasFragment(n){return !!getFragments()['f'+n]}
+function awardFragment(n,name){
+  if(hasFragment(n))return false;
+  const f=getFragments();f['f'+n]={name,date:Date.now()};
+  localStorage.setItem('room0_fragments',JSON.stringify(f));
+  showFragmentEarned(n,name);
+  return true;
+}
+function showFragmentEarned(n,name){
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(4,4,8,.95);border:1px solid #c4956a;padding:30px 40px;z-index:9999;text-align:center;opacity:0;transition:opacity 1s;pointer-events:none';
+  d.innerHTML='<div style="font-family:Cormorant Garamond,serif;font-size:28px;color:#c4956a;letter-spacing:4px;margin-bottom:8px">FRAGMENT '+n+' / 7</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#5a564f;letter-spacing:2px;margin-bottom:12px">'+name.toUpperCase()+'</div><div style="font-size:32px;margin:10px 0">◆</div><div style="font-family:Cormorant Garamond,serif;font-size:14px;color:#c8c0b4;font-style:italic">The corridor remembers.</div>';
+  document.body.appendChild(d);
+  requestAnimationFrame(()=>d.style.opacity='1');
+  setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),1000)},4000);
+}
+
+// Fragment: At 100% void proximity, a special visitor arrives. Serve them.
+let voidVisitorSent = false;
+let voidVisitor = null;
+const _origLoop = setInterval(()=>{
+  if(!gameOn) return;
+  if(state.voidProx >= 100 && !voidVisitorSent && !hasFragment(7)){
+    voidVisitorSent = true;
+    voidVisitor = {
+      id:'void0',name:'The Visitor from Beyond',species:'Unknown',adj:'impossible',
+      bg:'standing at your counter. They should not exist. They are made of the void itself.',
+      want:'a cup of coffee. Just coffee. Please.',emoji:'🕳️',mood:50,patience:999,
+      served:false,hasTrade:false,tradeItem:'',tip:0,arrived:tick
+    };
+    visitors.unshift(voidVisitor);
+    currentVisitor = voidVisitor;
+    logMsg('🕳️ Something steps through the black hole. It looks at you. It looks human. Almost.','mystery');
+    logMsg('"I have been waiting for you to be ready. May I have a coffee?"','mystery');
+    updateUI();
+  }
+},2000);
+// Override serveCoffee to detect void visitor
+const _origServe = serveCoffee;
+serveCoffee = function(v){
+  _origServe(v);
+  if(v === voidVisitor && !hasFragment(7)){
+    setTimeout(()=>{
+      logMsg('"Thank you. That was the best coffee at the edge of nowhere."','mystery');
+      logMsg('The visitor dissolves. In their place: a fragment of something older than the void.','mystery');
+      awardFragment(7,'The Void');
+    },1500);
+  }
+};
 </script>
 </body>
 </html>

@@ -528,6 +528,46 @@ setInterval(() => {
   helpOv.innerHTML = '<div style="max-width:400px;text-align:center;padding:40px"><h2 style="font-family:Cormorant Garamond,serif;font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:#c47a7a">HOW TO PLAY</h2><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">CLICK or PRESS SPACE — advance the breach</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">7 PHASES — the page progressively breaks apart</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">Watch as code leaks through and elements escape</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">The browser IS the canvas. Just keep clicking.</div><button onclick="this.parentElement.parentElement.style.opacity=0;this.parentElement.parentElement.style.pointerEvents=\'none\'" style="font-family:Cormorant Garamond,serif;font-size:14px;color:#c47a7a;background:none;border:1px solid #c47a7a;padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s">GOT IT</button></div>';
   document.body.appendChild(helpOv);
   helpBtn.onclick = () => { helpOv.style.opacity = helpOv.style.opacity === '1' ? '0' : '1'; helpOv.style.pointerEvents = helpOv.style.pointerEvents === 'auto' ? 'none' : 'auto'; };
+
+// === FRAGMENT SYSTEM ===
+function getFragments(){return JSON.parse(localStorage.getItem('room0_fragments')||'{}')}
+function hasFragment(n){return !!getFragments()['f'+n]}
+function awardFragment(n,name){
+  if(hasFragment(n))return false;
+  const f=getFragments();f['f'+n]={name,date:Date.now()};
+  localStorage.setItem('room0_fragments',JSON.stringify(f));
+  showFragmentEarned(n,name);
+  return true;
+}
+function showFragmentEarned(n,name){
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(4,4,8,.95);border:1px solid #c4956a;padding:30px 40px;z-index:9999;text-align:center;opacity:0;transition:opacity 1s;pointer-events:none';
+  d.innerHTML='<div style="font-family:Cormorant Garamond,serif;font-size:28px;color:#c4956a;letter-spacing:4px;margin-bottom:8px">FRAGMENT '+n+' / 7</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#5a564f;letter-spacing:2px;margin-bottom:12px">'+name.toUpperCase()+'</div><div style="font-size:32px;margin:10px 0">◆</div><div style="font-family:Cormorant Garamond,serif;font-size:14px;color:#c8c0b4;font-style:italic">The corridor remembers.</div>';
+  document.body.appendChild(d);
+  requestAnimationFrame(()=>d.style.opacity='1');
+  setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),1000)},4000);
+}
+
+// Fragment: Type "remember" after reaching phase 7
+let breachBuf = '';
+document.addEventListener('keydown', function breachFrag(e){
+  if(phase < 7) return;
+  breachBuf = (breachBuf + e.key.toLowerCase()).slice(-10);
+  if(breachBuf.includes('remember')){
+    awardFragment(4,'The Breach');
+    breachBuf = '';
+  }
+});
+// Add hint at phase 7
+const _origPhaseCheck = setInterval(()=>{
+  if(phase >= 7 && !hasFragment(4)){
+    const hint = document.createElement('div');
+    hint.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);font-family:Sometype Mono,monospace;font-size:10px;color:rgba(196,122,122,.3);letter-spacing:2px;z-index:9998';
+    hint.textContent='what remains? type it.';
+    document.body.appendChild(hint);
+    clearInterval(_origPhaseCheck);
+  }
+},1000);
 </script>
 </body>
 </html>

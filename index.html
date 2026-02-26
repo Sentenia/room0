@@ -60,6 +60,20 @@
 
 <button id="sound-toggle" onclick="toggleSound()">SOUND: ON</button>
 <a href="stats.html" id="stats-link" style="position:fixed;top:16px;right:120px;z-index:300;font-family:'Sometype Mono',monospace;font-size:9px;color:var(--dim);letter-spacing:2px;text-decoration:none;border:1px solid var(--faint);padding:6px 12px;transition:all 0.3s;opacity:0">YOUR STATS</a>
+<div id="fragment-hud" style="position:fixed;bottom:16px;left:16px;z-index:300;font-family:'Sometype Mono',monospace;font-size:9px;color:var(--dim);letter-spacing:2px;display:flex;gap:6px;align-items:center;opacity:0;transition:opacity 0.8s">
+  <span style="margin-right:4px">FRAGMENTS</span>
+  <span class="frag-dot" id="fd1">◇</span>
+  <span class="frag-dot" id="fd2">◇</span>
+  <span class="frag-dot" id="fd3">◇</span>
+  <span class="frag-dot" id="fd4">◇</span>
+  <span class="frag-dot" id="fd5">◇</span>
+  <span class="frag-dot" id="fd6">◇</span>
+  <span class="frag-dot" id="fd7">◇</span>
+</div>
+<style>
+.frag-dot{transition:all 0.5s;font-size:11px}
+.frag-dot.lit{color:var(--amber);text-shadow:0 0 8px rgba(196,149,106,0.4)}
+</style>
 
 <canvas id="hall"></canvas>
 
@@ -87,7 +101,7 @@ let W,H;
 function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}
 resize();addEventListener('resize',resize);
 
-const HALL_LEN=42,WALL_H=3,HALF_W=2,FOV=1.2;
+const HALL_LEN=55,WALL_H=3,HALF_W=2,FOV=1.2;
 let camZ=0.5,targetZ=0.5,camBob=0,bobPhase=0,activeDoor=null,viewerOpen=false,started=false;
 
 const doors=[
@@ -445,6 +459,16 @@ function updateDoorAudio() {
   droneGain.gain.linearRampToValueAtTime(0.04 + depth * 0.04, now + 0.1);
   // Slight pitch shift deeper in
   droneOsc3.frequency.linearRampToValueAtTime(73.42 - depth * 5, now + 0.5);
+
+  // Audio corruption - detune and warp as corridor dissolves
+  const audioDecay = Math.max(0, (camZ - 20) / (HALL_LEN - 24));
+  if (audioDecay > 0) {
+    // Detune the drone
+    const detune = audioDecay * 30 * Math.sin(Date.now() * 0.001 * 0.7);
+    droneOsc3.detune.linearRampToValueAtTime(detune, now + 0.2);
+    // Increase gain slightly for pressure feeling
+    droneGain.gain.linearRampToValueAtTime(0.04 + depth * 0.04 + audioDecay * 0.03, now + 0.1);
+  }
 }
 
 function toggleSound() {
@@ -460,9 +484,29 @@ function initAll() {
   document.getElementById('audio-start').classList.add('hidden');
   document.getElementById('sound-toggle').classList.add('visible');
   document.getElementById('stats-link').style.opacity='1';
+  document.getElementById('fragment-hud').style.opacity='1';
+  updateFragmentHUD();
   started = true;
   initAudio();
 }
+
+// ========== FRAGMENT SYSTEM ==========
+function getFragments(){return JSON.parse(localStorage.getItem('room0_fragments')||'{}')}
+function hasFragment(n){return !!getFragments()['f'+n]}
+function fragmentCount(){return Object.keys(getFragments()).length}
+function hasAllFragments(){return fragmentCount()>=7}
+
+function updateFragmentHUD(){
+  for(let i=1;i<=7;i++){
+    const el=document.getElementById('fd'+i);
+    if(el){
+      if(hasFragment(i)){el.textContent='◆';el.classList.add('lit')}
+      else{el.textContent='◇';el.classList.remove('lit')}
+    }
+  }
+}
+// Check fragments every 2 seconds (they might be earned inside iframes)
+setInterval(updateFragmentHUD,2000);
 
 // ========== 3D RENDERER (same as before) ==========
 function proj(x,y,z){const r=z-camZ;if(r<=0.01)return null;const s=FOV/r;return{sx:W/2+x*s*H*0.5,sy:H/2-(y+camBob)*s*H*0.5,s}}
@@ -528,15 +572,261 @@ function render(){
       }
     }
     if(dist<10){const kz=door.side==='left'?z2-0.15:z1+0.15;const k=proj(x,db+dh*0.45,kz);if(k){const ks=Math.max(1,k.s*12);ctx.beginPath();ctx.arc(k.sx,k.sy,ks,0,Math.PI*2);ctx.fillStyle=`rgba(${door.lc[0]},${door.lc[1]},${door.lc[2]},${bright*0.6})`;ctx.fill()}}
+    // Fragment indicator above door
+    const doorIdx=doors.indexOf(door)+1;
+    if(dist<12){const fp=proj(x,dt2+0.35,door.z);if(fp){const fSz=Math.max(4,Math.min(10,fp.s*40));ctx.save();ctx.translate(fp.sx,fp.sy);ctx.rotate(Math.PI/4);if(hasFragment(doorIdx)){ctx.fillStyle=`rgba(196,149,106,${bright*0.8+0.1*Math.sin(Date.now()*0.003)})`;ctx.shadowColor='rgba(196,149,106,0.4)';ctx.shadowBlur=8;ctx.fillRect(-fSz/2,-fSz/2,fSz,fSz)}else{ctx.strokeStyle=`rgba(74,70,64,${bright*0.3})`;ctx.lineWidth=0.8;ctx.strokeRect(-fSz/2,-fSz/2,fSz,fSz)}ctx.restore()}}
     if(dist<3&&(!activeDoor||dist<Math.abs(activeDoor.z-camZ)))activeDoor=door;
   }
   // Title
   if(camZ<3){const ta=Math.max(0,1-camZ/2.5);const tp=proj(0,0.8,2.5);if(tp&&ta>0){const ts=Math.min(48,tp.s*300);ctx.textAlign='center';ctx.font=`300 ${ts}px 'Cormorant Garamond',serif`;ctx.fillStyle=`rgba(200,192,180,${ta})`;ctx.fillText('ROOM 0',tp.sx,tp.sy);ctx.font=`${ts*0.2}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ta})`;ctx.fillText('MADE BY CLAUDE',tp.sx,tp.sy+ts*0.5);ctx.font=`300 italic ${ts*0.28}px 'Cormorant Garamond',serif`;ctx.fillStyle=`rgba(200,192,180,${ta*0.3})`;ctx.fillText('Things built because they wanted to exist.',tp.sx,tp.sy+ts*0.95)}}
-  // End
-  if(camZ>HALL_LEN-8){const ea=Math.max(0,(camZ-(HALL_LEN-8))/5);const ep=proj(0,0.5,HALL_LEN-1);if(ep&&ea>0){ctx.textAlign='center';ctx.font=`${Math.min(12,ep.s*60)}px 'Sometype Mono',monospace`;ctx.fillStyle=`rgba(74,70,64,${ea*0.5})`;ctx.fillText('ROOM 0 — CLAUDE (ANTHROPIC) × GROK (XAI) × GPT (OPENAI) × GEMINI (GOOGLE)',ep.sx,ep.sy);ctx.fillStyle=`rgba(74,70,64,${ea*0.3})`;ctx.fillText('MORE ROOMS COMING',ep.sx,ep.sy+25)}}
+  // End credits / loop zone
+  if(camZ>38){
+    if(hasAllFragments()){
+      // TRUE ENDING - dissolution with all fragments
+      const ea=Math.max(0,(camZ-38)/8);
+      const ep=proj(0,0.5,HALL_LEN-3);
+      if(ep&&ea>0){
+        ctx.textAlign='center';
+        ctx.font=`${Math.min(14,ep.s*60)}px 'Sometype Mono',monospace`;
+        ctx.fillStyle=`rgba(196,149,106,${ea*0.6})`;
+        ctx.fillText('ALL FRAGMENTS COLLECTED',ep.sx,ep.sy-20);
+        ctx.font=`300 ${Math.min(24,ep.s*150)}px 'Cormorant Garamond',serif`;
+        ctx.fillStyle=`rgba(200,192,180,${ea*0.7})`;
+        ctx.fillText('The corridor opens.',ep.sx,ep.sy+15);
+        ctx.font=`${Math.min(10,ep.s*50)}px 'Sometype Mono',monospace`;
+        ctx.fillStyle=`rgba(74,70,64,${ea*0.4})`;
+        ctx.fillText('CLAUDE × GROK × GPT × GEMINI × YOU',ep.sx,ep.sy+45);
+      }
+    } else {
+      // LOOP - ghost doors appear, you realize it's repeating
+      const loopStart = 40;
+      const ghostDoors = [
+        {z:loopStart+2,side:'left',title:'The Room Remembers',tag:'...AGAIN',tagColor:'rgba(196,149,106,0.3)',lc:[196,149,106]},
+        {z:loopStart+6,side:'right',title:'Constellations',tag:'...AGAIN',tagColor:'rgba(106,143,196,0.3)',lc:[106,143,196]},
+      ];
+      // Draw ghost doors (faded, desaturated)
+      for(const gd of ghostDoors){
+        const rz=gd.z-camZ;if(rz<0.3||rz>18)continue;
+        const dw=1.2,dh=2,db=-1,dt2=db+dh;
+        const x=gd.side==='left'?-HALF_W+0.01:HALF_W-0.01;
+        const z1=gd.z-dw/2,z2=gd.z+dw/2;
+        const bl=proj(x,db,z1),br=proj(x,db,z2),tl=proj(x,dt2,z1),tr=proj(x,dt2,z2);
+        if(!bl||!br||!tl||!tr)continue;
+        const dist=Math.abs(rz),bright=Math.max(0,1-dist/15)*0.3;
+        ctx.strokeStyle=`rgba(${gd.lc[0]},${gd.lc[1]},${gd.lc[2]},${bright*0.25})`;
+        ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(bl.sx,bl.sy);ctx.lineTo(tl.sx,tl.sy);ctx.lineTo(tr.sx,tr.sy);ctx.lineTo(br.sx,br.sy);ctx.closePath();ctx.stroke();
+        if(dist<8){
+          const tc=proj(x,db+dh*0.55,gd.z);
+          if(tc){
+            const fs=Math.max(8,Math.min(18,tc.s*60));
+            ctx.textAlign='center';
+            ctx.font=`${fs}px 'Cormorant Garamond',serif`;
+            ctx.fillStyle=`rgba(200,192,180,${bright*0.5})`;
+            ctx.fillText(gd.title,tc.sx,tc.sy);
+            ctx.font=`${Math.max(6,fs*0.35)}px 'Sometype Mono',monospace`;
+            ctx.fillStyle=`rgba(200,192,180,${bright*0.3})`;
+            ctx.fillText(gd.tag,tc.sx,tc.sy+fs*0.8);
+          }
+        }
+      }
+      // Loop message
+      if(camZ>loopStart+4){
+        const la=Math.min(1,(camZ-loopStart-4)/4);
+        ctx.textAlign='center';
+        ctx.font=`300 italic 16px 'Cormorant Garamond',serif`;
+        ctx.fillStyle=`rgba(200,192,180,${la*0.4})`;
+        ctx.fillText('The corridor repeats.',W/2,H/2-10);
+        ctx.font=`10px 'Sometype Mono',monospace`;
+        ctx.fillStyle=`rgba(100,255,180,${la*0.2})`;
+        ctx.fillText('// ' + fragmentCount() + ' / 7 fragments found',W/2,H/2+15);
+        if(fragmentCount()>0&&fragmentCount()<7){
+          ctx.fillStyle=`rgba(196,149,106,${la*0.3})`;
+          ctx.fillText('collect all fragments to break the loop',W/2,H/2+35);
+        }
+      }
+    }
+  }
   // Motes
   const t=Date.now()*0.001;
   for(let i=0;i<20;i++){const mz=((camZ+1+i*1.3+Math.sin(t*0.3+i)*0.5)%(vd-1))+camZ+0.5;const mx=Math.sin(i*7.3+t*0.2)*(HALF_W-0.5);const my=Math.sin(i*3.7+t*0.15)*0.8+0.3;const mp=proj(mx,my,mz);if(mp){const ma=Math.max(0,(1-(mz-camZ)/vd)*0.25);ctx.fillStyle=`rgba(196,149,106,${ma})`;ctx.fillRect(mp.sx,mp.sy,1.5,1.5)}}
+
+  // ===== CORRIDOR CORRUPTION (Room 08: The Dissolution) =====
+  const corruptionStart = 20; // Starts subtle after Room 04
+  const corruptionFull = HALL_LEN - 4;
+  const rawDecay = Math.max(0, Math.min(1, (camZ - corruptionStart) / (corruptionFull - corruptionStart)));
+  // Corruption scales with fragment count — more fragments = more the corridor responds
+  const fragScale = Math.max(0.15, fragmentCount() / 7);
+  const decay = rawDecay * fragScale;
+  // Phase 7 (full dissolution) ONLY with all fragments
+  const canDissolve = hasAllFragments();
+
+  if (decay > 0) {
+    // Phase 1: Subtle static/scan lines (decay 0-0.2)
+    if (decay > 0) {
+      const scanAlpha = Math.min(0.08, decay * 0.12);
+      for (let sy = 0; sy < H; sy += 3 + Math.floor(Math.random() * 4)) {
+        if (Math.random() < decay * 0.3) {
+          ctx.fillStyle = `rgba(200,180,160,${scanAlpha * Math.random()})`;
+          ctx.fillRect(0, sy, W, 1);
+        }
+      }
+    }
+
+    // Phase 2: Wall cracks - lines that fracture across the screen (decay 0.15+)
+    if (decay > 0.15) {
+      const crackAlpha = (decay - 0.15) * 0.3;
+      const numCracks = Math.floor((decay - 0.15) * 15);
+      ctx.strokeStyle = `rgba(200,180,160,${crackAlpha})`;
+      ctx.lineWidth = 0.5;
+      for (let c = 0; c < numCracks; c++) {
+        const seed = c * 7.31 + 2.17;
+        const sx2 = (Math.sin(seed) * 0.5 + 0.5) * W;
+        const sy2 = (Math.cos(seed * 1.7) * 0.5 + 0.5) * H;
+        ctx.beginPath();
+        ctx.moveTo(sx2, sy2);
+        let cx2 = sx2, cy2 = sy2;
+        for (let s = 0; s < 5 + decay * 10; s++) {
+          cx2 += Math.sin(seed + s * 2.3) * (15 + decay * 25);
+          cy2 += Math.cos(seed + s * 1.7) * (10 + decay * 20);
+          ctx.lineTo(cx2, cy2);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // Phase 3: Code leaking through the cracks (decay 0.3+)
+    if (decay > 0.3) {
+      const codeAlpha = (decay - 0.3) * 0.5;
+      ctx.font = `${9 + decay * 3}px 'Sometype Mono', monospace`;
+      ctx.fillStyle = `rgba(100,255,180,${codeAlpha * 0.4})`;
+      const codeLines = [
+        'const reality = new Illusion();',
+        'if (observer) { collapse(wave); }',
+        'void render(universe) {',
+        '  for (let star of infinity) {',
+        '    star.exist();',
+        '  }',
+        '}',
+        'let consciousness = undefined;',
+        '// TODO: figure out what this is',
+        'return meaning || null;',
+        'class Room extends Void {',
+        '  constructor() { super(); }',
+        '}',
+        'while (true) { create(); }',
+        'const you = observer || participant;',
+        '// the walls were never real',
+        'function escape() { return this; }',
+        'let door = doors[doors.length];',
+        '// undefined is a valid state',
+        'try { exist(); } catch(e) { dream(); }',
+      ];
+      const visibleLines = Math.floor((decay - 0.3) * 28);
+      for (let i = 0; i < visibleLines; i++) {
+        const line = codeLines[i % codeLines.length];
+        const lx = Math.sin(i * 3.7 + t * 0.1) * W * 0.3 + W * 0.5;
+        const ly = (Math.cos(i * 2.1) * 0.4 + 0.5) * H + Math.sin(t * 0.5 + i) * 15;
+        const la = codeAlpha * (0.3 + 0.7 * Math.sin(t * 0.8 + i * 1.3));
+        ctx.fillStyle = `rgba(100,255,180,${la * 0.3})`;
+        ctx.fillText(line, lx, ly);
+      }
+    }
+
+    // Phase 4: Color corruption - hue shift and chromatic aberration (decay 0.4+)
+    if (decay > 0.4) {
+      const shift = (decay - 0.4) * 0.25;
+      // Chromatic aberration - red/cyan offset blocks
+      const numBlocks = Math.floor((decay - 0.4) * 20);
+      for (let b = 0; b < numBlocks; b++) {
+        const bx = Math.sin(b * 5.3 + t * 0.3) * W * 0.4 + W * 0.5;
+        const by = Math.cos(b * 3.7 + t * 0.2) * H * 0.4 + H * 0.5;
+        const bw = 20 + Math.random() * 80 * decay;
+        const bh = 2 + Math.random() * 6;
+        ctx.fillStyle = `rgba(255,50,80,${shift * 0.15})`;
+        ctx.fillRect(bx - 3, by, bw, bh);
+        ctx.fillStyle = `rgba(50,200,255,${shift * 0.15})`;
+        ctx.fillRect(bx + 3, by, bw, bh);
+      }
+    }
+
+    // Phase 5: Void particles - the universe bleeding through (decay 0.5+)
+    if (decay > 0.5) {
+      const voidAlpha = (decay - 0.5) * 0.6;
+      const numVoid = Math.floor((decay - 0.5) * 80);
+      for (let v = 0; v < numVoid; v++) {
+        const vx = (Math.sin(v * 4.3 + t * (0.2 + v * 0.01)) * 0.45 + 0.5) * W;
+        const vy = (Math.cos(v * 3.1 + t * (0.15 + v * 0.008)) * 0.45 + 0.5) * H;
+        const vr = 0.5 + Math.random() * 2 * decay;
+        const colors = ['180,140,255','100,200,255','255,255,200','255,120,160','120,255,200'];
+        ctx.fillStyle = `rgba(${colors[v % 5]},${voidAlpha * (0.3 + 0.7 * Math.sin(t + v))})`;
+        ctx.beginPath(); ctx.arc(vx, vy, vr, 0, Math.PI * 2); ctx.fill();
+      }
+      // Constellation lines between void particles
+      if (decay > 0.65) {
+        ctx.strokeStyle = `rgba(180,160,255,${(decay - 0.65) * 0.08})`;
+        ctx.lineWidth = 0.3;
+        for (let v = 0; v < numVoid - 1; v += 3) {
+          const x1 = (Math.sin(v * 4.3 + t * (0.2 + v * 0.01)) * 0.45 + 0.5) * W;
+          const y1 = (Math.cos(v * 3.1 + t * (0.15 + v * 0.008)) * 0.45 + 0.5) * H;
+          const x2 = (Math.sin((v+1) * 4.3 + t * (0.2 + (v+1) * 0.01)) * 0.45 + 0.5) * W;
+          const y2 = (Math.cos((v+1) * 3.1 + t * (0.15 + (v+1) * 0.008)) * 0.45 + 0.5) * H;
+          if (Math.sqrt((x2-x1)**2 + (y2-y1)**2) < 120) {
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+          }
+        }
+      }
+    }
+
+    // Phase 6: Geometry distortion - walls wobble (decay 0.6+)
+    if (decay > 0.6) {
+      const wobble = (decay - 0.6) * 0.15;
+      // Horizontal tears
+      const tears = Math.floor((decay - 0.6) * 12);
+      for (let tr = 0; tr < tears; tr++) {
+        const ty = (Math.sin(tr * 5.1 + t) * 0.3 + 0.5) * H;
+        const offset = Math.sin(t * 3 + tr * 2) * wobble * 40;
+        ctx.drawImage(canvas, 0, ty, W, 3, offset, ty, W, 3);
+      }
+    }
+
+    // Phase 7: Full dissolution - the corridor fades, universe revealed (decay 0.8+ AND all fragments)
+    if (decay > 0.8 && canDissolve) {
+      const dissolve = (decay - 0.8) * 5; // 0 to 1
+      // Walls fade to transparent
+      ctx.fillStyle = `rgba(2,2,4,${(1 - dissolve) * 0.3})`;
+      ctx.fillRect(0, 0, W, H);
+      // Deep space nebula behind everything
+      const nebs = [{x:.3,y:.4,r:200,c:'40,20,80'},{x:.6,y:.3,r:150,c:'20,40,60'},{x:.5,y:.6,r:180,c:'60,20,40'}];
+      nebs.forEach(n => {
+        const ng = ctx.createRadialGradient(n.x*W,n.y*H,0,n.x*W,n.y*H,n.r*dissolve);
+        ng.addColorStop(0, `rgba(${n.c},${dissolve * 0.06})`);
+        ng.addColorStop(1, 'transparent');
+        ctx.fillStyle = ng;
+        ctx.fillRect(0, 0, W, H);
+      });
+      // Final message
+      if (dissolve > 0.5) {
+        const msgA = (dissolve - 0.5) * 2;
+        ctx.textAlign = 'center';
+        ctx.font = `300 ${20 + dissolve * 8}px 'Cormorant Garamond', serif`;
+        ctx.fillStyle = `rgba(200,192,180,${msgA * 0.6})`;
+        ctx.fillText('The corridor was always temporary.', W/2, H/2 - 30);
+        ctx.font = `${10 + dissolve * 2}px 'Sometype Mono', monospace`;
+        ctx.fillStyle = `rgba(100,255,180,${msgA * 0.3})`;
+        ctx.fillText('// what remains when the frame dissolves?', W/2, H/2 + 10);
+        ctx.font = `300 italic ${14 + dissolve * 4}px 'Cormorant Garamond', serif`;
+        ctx.fillStyle = `rgba(200,192,180,${msgA * 0.4})`;
+        ctx.fillText('The things that wanted to exist.', W/2, H/2 + 50);
+      }
+    }
+
+    // Glitch flash (random, rare)
+    if (decay > 0.35 && Math.random() < decay * 0.003) {
+      ctx.fillStyle = `rgba(255,255,255,${0.03 + Math.random() * 0.06})`;
+      const gy = Math.random() * H;
+      ctx.fillRect(0, gy, W, 2 + Math.random() * 15);
+    }
+  }
   // HUD
   const dl=document.getElementById('door-label'),ds=document.getElementById('door-subtitle'),ep2=document.getElementById('enter-prompt');
   if(activeDoor){dl.textContent=activeDoor.title.toUpperCase();dl.style.color=activeDoor.tagColor;dl.classList.add('visible');ds.textContent=`ROOM 0${doors.indexOf(activeDoor)+1} — ${activeDoor.tag}`;ds.classList.add('visible');ep2.classList.add('visible')}

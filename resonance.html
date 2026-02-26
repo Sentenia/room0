@@ -520,6 +520,47 @@
   helpOv.innerHTML = '<div style="max-width:400px;text-align:center;padding:40px"><h2 style="font-family:Cormorant Garamond,serif;font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:20px;color:#7ac49a">HOW TO PLAY</h2><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">CLICK — drop a note into the void</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">MOVE MOUSE — bend wave frequencies nearby</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">KEYS A-S-D-F-G-H-J-K-L — play D minor scale</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#c8c0b4;margin:8px 0;padding:8px;border:1px solid #1e1e24;line-height:1.8">Just listen. There is no wrong way to play.</div><button onclick="this.parentElement.parentElement.style.opacity=0;this.parentElement.parentElement.style.pointerEvents=\'none\'" style="font-family:Cormorant Garamond,serif;font-size:14px;color:#7ac49a;background:none;border:1px solid #7ac49a;padding:10px 30px;cursor:pointer;letter-spacing:2px;margin-top:20px;transition:all .3s">GOT IT</button></div>';
   document.body.appendChild(helpOv);
   helpBtn.onclick = () => { helpOv.style.opacity = helpOv.style.opacity === '1' ? '0' : '1'; helpOv.style.pointerEvents = helpOv.style.pointerEvents === 'auto' ? 'none' : 'auto'; };
+
+// === FRAGMENT SYSTEM ===
+function getFragments(){return JSON.parse(localStorage.getItem('room0_fragments')||'{}')}
+function hasFragment(n){return !!getFragments()['f'+n]}
+function awardFragment(n,name){
+  if(hasFragment(n))return false;
+  const f=getFragments();f['f'+n]={name,date:Date.now()};
+  localStorage.setItem('room0_fragments',JSON.stringify(f));
+  showFragmentEarned(n,name);
+  return true;
+}
+function showFragmentEarned(n,name){
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(4,4,8,.95);border:1px solid #c4956a;padding:30px 40px;z-index:9999;text-align:center;opacity:0;transition:opacity 1s;pointer-events:none';
+  d.innerHTML='<div style="font-family:Cormorant Garamond,serif;font-size:28px;color:#c4956a;letter-spacing:4px;margin-bottom:8px">FRAGMENT '+n+' / 7</div><div style="font-family:Sometype Mono,monospace;font-size:11px;color:#5a564f;letter-spacing:2px;margin-bottom:12px">'+name.toUpperCase()+'</div><div style="font-size:32px;margin:10px 0">◆</div><div style="font-family:Cormorant Garamond,serif;font-size:14px;color:#c8c0b4;font-style:italic">The corridor remembers.</div>';
+  document.body.appendChild(d);
+  requestAnimationFrame(()=>d.style.opacity='1');
+  setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),1000)},4000);
+}
+
+// Fragment: Play the melody D-F-A-D-F using keys A-D-G-A-D
+const melodyTarget = [0,2,4,0,2]; // indices in keyMap: a=D,d=F,g=A
+let melodyProgress = [];
+let melodyTimeout;
+const _origKeyHandler = document.onkeydown;
+document.addEventListener('keydown', function fragMelody(e){
+  const km = {a:0,s:1,d:2,f:3,g:4,h:5,j:6,k:7,l:8};
+  const k = e.key.toLowerCase();
+  if(!(k in km)) return;
+  melodyProgress.push(km[k]);
+  clearTimeout(melodyTimeout);
+  melodyTimeout = setTimeout(()=>{melodyProgress=[]},3000);
+  // Check if last N keys match target
+  if(melodyProgress.length >= melodyTarget.length){
+    const last = melodyProgress.slice(-melodyTarget.length);
+    if(JSON.stringify(last)===JSON.stringify(melodyTarget)){
+      awardFragment(3,'The Resonance');
+      melodyProgress=[];
+    }
+  }
+}, true);
 </script>
 </body>
 </html>
